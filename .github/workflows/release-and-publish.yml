@@ -1,0 +1,145 @@
+name: Release and Publish
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - '*.sln'
+      - '*.props'
+      - '*.targets'
+      - 'global.json'
+      - 'nuget.config'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_increment:
+        description: Version increment type (auto|major|minor|patch)
+        required: false
+        default: auto
+        type: choice
+        options: [ auto, major, minor, patch ]
+
+permissions:
+  contents: write
+  packages: write        
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false  
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true  
+
+jobs:
+  release:
+    name: Build, Tag, Publish
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gitversion.outputs.nuGetVersionV2 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDKs
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x        
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/packages.lock.json
+            nuget.config
+
+      - name: GitVersion - Setup
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine GitVersion override
+        id: gv
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.version_increment }}" != "auto" ]; then
+            echo "override=increment=${{ inputs.version_increment }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "override=" >> "$GITHUB_OUTPUT"
+          fi          
+
+      - name: GitVersion - Determine
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3
+        with:
+          useConfigFile: true
+          overrideConfig: ${{ steps.gv.outputs.override }}
+
+      - name: Setup BC DevTools
+        id: setup-bc-devtools
+        uses: ./.github/actions/setup-bc-devtools
+        with:
+          version-number: '10.0.687650'          
+
+      - name: Restore
+        run: dotnet restore src/RoslynTestKit.sln
+
+      - name: Build
+        run: >
+          dotnet build src/RoslynTestKit.sln --no-restore --configuration Release
+          /p:ContinuousIntegrationBuild=true
+          /p:RepositoryBranch=${{ github.ref_name }}
+          /p:RepositoryCommit=${{ steps.gitversion.outputs.sha }}
+          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }}
+          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }}
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+
+      - name: Pack
+        run: >
+          dotnet pack src/RoslynTestKit/RoslynTestKit.csproj --no-build --configuration Release
+          /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+          /p:RepositoryCommit=${{ steps.gitversion.outputs.sha }}
+          --output ./packages
+
+      - name: Validate package manifest
+        run: |
+          dotnet tool install --global dotnet-validate --version 0.0.1-preview.304
+          dotnet-validate package local ./packages/*.nupkg
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.gitversion.outputs.nuGetVersionV2 }}
+          name: v${{ steps.gitversion.outputs.nuGetVersionV2 }}
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.gitversion.outputs.nuGetVersionV2, '-') }}
+          files: |
+            ./packages/*.nupkg
+            ./packages/*.snupkg
+
+      - name: Publish to GitHub Packages
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget push ./packages/*.nupkg \
+            --api-key "$NUGET_AUTH_TOKEN" \
+            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json \
+            --skip-duplicate
+
+      - name: Publish to NuGet.org (stable only)
+        if: ${{ !contains(steps.gitversion.outputs.nuGetVersionV2, '-') }}
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "NUGET_API_KEY not configured"; exit 1
+          fi
+          dotnet nuget push ./packages/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+

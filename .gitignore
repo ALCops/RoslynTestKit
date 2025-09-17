@@ -383,3 +383,5 @@ ASALocalRun/
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
 
+# Microsoft Dynamics Business Central Development Tools
+**/Microsoft.Dynamics.BusinessCentral.Development.Tools/
