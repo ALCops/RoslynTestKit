@@ -18,7 +18,7 @@ runs:
       shell: pwsh
       run: |
         # Retrieve source Uri from Marketplace
-        $sourceUri = ${{github.action_path}}/Marketplace.ps1
+        $sourceUri = ${{github.action_path}}/Marketplace.ps1 -Version ${{ inputs.version-number }}
         echo "source-uri=$($sourceUri)" >> $env:GITHUB_OUTPUT
 
     - name: Download BC DevTools asset
