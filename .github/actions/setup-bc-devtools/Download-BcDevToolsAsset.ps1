@@ -16,7 +16,7 @@ Maximum download attempts. Default: 3.
 Per-attempt timeout in seconds. Default: 600.
 
 .EXAMPLE
-$path = ./.github/scripts/Download-BcDevToolsAsset.ps1 -AssetUri 'https://example/file.nupkg' -TargetDirectory $env:RUNNER_TEMP
+$path = ./.github/scripts/Download-BcDevToolsAsset.ps1 -AssetUri 'https://example/file.nupkg'
 Write-Output "Downloaded to: $path"
 #>
 
