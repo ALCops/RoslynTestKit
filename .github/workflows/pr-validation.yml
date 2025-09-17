@@ -25,7 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.draft == false }}
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup .NET 8 SDK (with cache)
       uses: actions/setup-dotnet@v4
