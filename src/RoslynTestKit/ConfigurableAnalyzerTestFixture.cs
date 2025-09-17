@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics;
+using AdditionalText = Microsoft.Dynamics.Nav.CodeAnalysis.AdditionalText;
 
 namespace RoslynTestKit
 {

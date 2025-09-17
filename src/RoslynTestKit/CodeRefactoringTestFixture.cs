@@ -1,9 +1,9 @@
 ﻿using System.Collections.Immutable;
 using System.Threading;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
-using Microsoft.CodeAnalysis.CodeRefactorings;
-using Microsoft.CodeAnalysis.Text;
+using Microsoft.Dynamics.Nav.CodeAnalysis;
+using Microsoft.Dynamics.Nav.CodeAnalysis.CodeActions;
+using Microsoft.Dynamics.Nav.CodeAnalysis.CodeRefactoring;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using RoslynTestKit.CodeActionLocators;
 using RoslynTestKit.Utils;
 

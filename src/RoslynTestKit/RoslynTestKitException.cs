@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
-using Microsoft.CodeAnalysis.Completion;
+using Microsoft.Dynamics.Nav.CodeAnalysis.CodeActions;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Completion;
 using RoslynTestKit.CodeActionLocators;
 using RoslynTestKit.Utils;
 
