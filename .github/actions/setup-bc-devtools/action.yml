@@ -19,7 +19,7 @@ runs:
       run: |
         # Retrieve source Uri from Marketplace
         $sourceUri = ${{github.action_path}}/Marketplace.ps1
-        echo "source-uri=$($sourceUri" >> $env:GITHUB_OUTPUT
+        echo "source-uri=$($sourceUri") >> $env:GITHUB_OUTPUT
 
     - name: Download BC DevTools asset
       id: download-bc-devtools-asset
