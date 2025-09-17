@@ -1,247 +1,237 @@
 # RoslynTestKit
 
-A lightweight framework for writing unit tests for Roslyn diagnostic analyzers, code fixes, refactorings and completion providers.
-This is a port of [RoslynNUnitLight.NetStandard](https://github.com/phoenix172/RoslynNUnitLight.NetStandard). The main reasons to create a fork that is independent were:
+![Build Status](https://github.com/ALCops/RoslynTestKit/workflows/PR%20Validation/badge.svg)
+![Release](https://github.com/ALCops/RoslynTestKit/workflows/Release/badge.svg)
+[![NuGet Version](https://img.shields.io/nuget/v/ALCops.RoslynTestKit.svg)](https://www.nuget.org/packages/ALCops.RoslynTestKit/)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/ALCops.RoslynTestKit.svg)](https://www.nuget.org/packages/ALCops.RoslynTestKit/)
 
-- make the library independent of the test framework
-- decrease response time for reported issues
+A lightweight framework for writing unit tests for Roslyn diagnostic analyzers, code fixes, refactorings, and completion providers targeting the [AL Language](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-programming-in-al) of Microsoft Dynamics 365 Business Central. This project is a fork of [RoslynTestKit](https://github.com/cezarypiatek/RoslynTestKit), created to support the specific CodeAnalysis assemblies required by the AL language.
+
+|CSharp|AL|
+|--|--|
+|Microsoft.CodeAnalysis|Microsoft.Dynamics.Nav.CodeAnalysis|
+|Microsoft.CodeAnalysis.CodeActions|Microsoft.Dynamics.Nav.CodeAnalysis.CodeActions|
+|Microsoft.CodeAnalysis.CodeFixes|Microsoft.Dynamics.Nav.CodeAnalysis.CodeFixes|
+|Microsoft.CodeAnalysis.CodeRefactorings|Microsoft.Dynamics.Nav.CodeAnalysis.CodeRefactoring|
+|Microsoft.CodeAnalysis.Completion|Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Completion|
+|Microsoft.CodeAnalysis.Diagnostics|Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics|
+|Microsoft.CodeAnalysis.Text|Microsoft.Dynamics.Nav.CodeAnalysis.Text|
+||Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll|
 
 
 ### Quick Start
 
-1. Install the [SmartAnalyzers.RoslynTestKit ](https://www.nuget.org/packages/SmartAnalyzers.RoslynTestKit/)
-   package from NuGet into your project.
-2. Create appropriate test fixture using `RoslynFixtureFactory`
-3. Fix the fixture to perform assertion!
+1. Install the [ALCops.RoslynTestKit](https://www.nuget.org/packages/ALCops.RoslynTestKit/) package from NuGet into your project.
+2. Create appropriate test fixture using `RoslynFixtureFactory`.
+3. Configure the fixture to perform assertions.
+
+### Dependencies
+
+This is a minimal test project setup example with `NUnit` and the `RoslynTestKit`. We need minimal target `net8.0` and depedencies to `Microsoft.Dynamics.Nav.CodeAnalysis.dll` and `Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll`. 
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="ALCops.RoslynTestKit" Version="1.0.0" />
+        <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+        <PackageReference Include="NUnit" Version="4.1.0" />
+        <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+        <PackageReference Include="NUnit.Analyzers" Version="4.2.0" />
+        <PackageReference Include="System.Collections.Immutable" Version="8.0.0" />
+        <Using Include="NUnit.Framework" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="src/MyCodeAnalyzer.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <Reference Include="Microsoft.Dynamics.Nav.CodeAnalysis">
+            <SpecificVersion>False</SpecificVersion>
+            <HintPath>myFolder/Microsoft.Dynamics.Nav.CodeAnalysis.dll</HintPath>
+            <Private>True</Private>
+        </Reference>
+        <Reference Include="Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces">
+            <SpecificVersion>False</SpecificVersion>
+            <HintPath>myFolder/Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll</HintPath>
+            <Private>True</Private>
+        </Reference>
+    </ItemGroup>
+</Project>
+```
 
 ### Code location markers
 
-RoslynTestKit accepts strings that are marked up with ```[|``` and ```|]``` to identify a particular span. This could represent the span of an expected
-diagnostic or the text selection before a refactoring is applied. 
+RoslynTestKit accepts strings that are marked up with ```[|``` and ```|]``` to identify a particular span. This could represent the span of an expected diagnostic or the text selection before a refactoring is applied. 
 Instead of the markers you can also provide line number to locate the place of expected diagnostic.
 
-### Framework dependencies
+### Example: Test presence of a diagnostic
 
-By default RoslynTestKit adds to the compilation the following references:
-- `mscorlib.dll` (and its dependencies)
-- `System.Private.CoreLib.dll`
-- `System.Linq.dll`
-- `System.Linq.Expression.dll`
+Create a `FlowFieldEditable.al` file which the AL compiler can parse and apply the code location markers.
 
-You can change that behavior by overriding `CreateFrameworkMetadataReferences()` method. You can also take full control of how the workspace/compilation is created by overriding :
+##### FlowFieldEditable.al
 
-```Document CreateDocumentFromCode(string code, string languageName, IReadOnlyCollection<MetadataReference> extraReferences)```
-
-### External dependencies
-
-Every `*TestFixture` can be configured to import external dependencies required by the test case code/markup. There is also a couple of helper methods in `ReferenceSource` class that allow to easily define these dependencies. A sample setup for analyzer test with external dependencies can looks as follows:
-
-```csharp
-public class SampleTests
+```AL
+table 50100 MyTable
 {
-
-    [Test]
-    public void should_verify_analyzer()
+    fields
     {
-        var fixture = RoslynFixtureFactory.Create<SampleAnalyzer>(new () {
-            References = new []{
-                ReferenceSource.FromType<ReaderWriterLock>() 
-            };
-        });
-
-        //TODO: test your analyzer
+        field(1; MyField; Integer) { }
+        [|field(2; MyCalcField; Boolean)|]
+        {
+            FieldClass = FlowField;
+            CalcFormula = exist(MyTable where (MyField = field(MyField)));
+        }
     }
 }
 ```
 
-#### Example: Test presence of a diagnostic
+Create a C# class to execute the tests. It's best practice to always use the `HasDiagnosticAtAllMarkers` method, especially when one of the `.al` files contain multiple markers.
 
 ```C#
 [Test]
-public void AutoPropDeclaredAndUsedInConstructor()
+[TestCase("FlowFieldEditable")]
+[TestCase("FlowFieldEditableWithoutComment")]
+...
+[TestCase("n")]
+public async Task HasDiagnostic(string testCase)
 {
-    const string code = @"
-class C
-{
-	public bool MyProperty { get; [|private set;|] }
-	public C(bool f)
-	{
-		MyProperty = f;
-	}
-}";
-
-    var fixture = RoslynFixtureFactory.Create<UseGetterOnlyAutoPropertyAnalyzer>();
-
-    fixture.HasDiagnostic(code, DiagnosticIds.UseGetterOnlyAutoProperty);
+    var code = await File.ReadAllTextAsync($"{testCase}.al").ConfigureAwait(false);
+    var fixture = RoslynFixtureFactory.Create<MyCodeAnalyzer.Rules.FlowFieldsShouldNotBeEditable>();
+    fixture.HasDiagnosticAtAllMarkers(code, DiagnosticIds.FlowFieldsShouldNotBeEditable);
 }
 ```
 
-#### Example: Override test project and test document names
+### Example: Test absence of a diagnostic
 
-```C#
-[Test]
-public void AutoPropDeclaredAndUsedInConstructor()
+Create a `FlowFieldObsoleteRemoved.al` file which the AL compiler can parse and apply the code location markers.
+
+##### FlowFieldObsoleteRemoved.al
+
+```AL
+table 50100 MyTable
 {
-    const string markup = @"
-class C
-{
-	public bool MyProperty { get; [|private set;|] }
-	public C(bool f)
-	{
-		MyProperty = f;
-	}
-}";
-
-    var fixture = RoslynFixtureFactory.Create<UseGetterOnlyAutoPropertyAnalyzer>();
-
-    var document = this.CreateDocumentFromMarkup(markup, "MySampleProject", "MySampleDocument");
-    var diagnosticLocation = this.GetMarkerLocation(markup);
-    fixture.HasDiagnostic(document, DiagnosticIds.UseGetterOnlyAutoProperty, diagnosticLocation);
-}
-```
-
-#### Example: Test absence of a diagnostic
-
-```C#
-[Test]
-public void AutoPropAlreadyReadonly()
-{
-    const string code = @"
-class C
-{
-    public bool MyProperty { get; }
-    public C(bool f)
+    fields
     {
-        MyProperty = f;
+        field(1; MyField; Integer) { }
+        [|field(2; MyCalcField; Boolean)|]
+        {
+            FieldClass = FlowField;
+            CalcFormula = exist(MyTable where (MyField = field(MyField)));
+            ObsoleteState = Removed;
+        }
     }
-}";
+}
+```
 
-    var fixture = RoslynFixtureFactory.Create<UseGetterOnlyAutoPropertyAnalyzer>();
-    fixture.NoDiagnostic(code, DiagnosticIds.UseGetterOnlyAutoProperty);
+Create a C# class to execute the tests. It's best practice to always use the `NoDiagnosticAtAllMarkers` method, especially when one of the `.al` files contain multiple markers.
+
+```C#
+[Test]
+[TestCase("FlowFieldObsoleteRemoved")]
+[TestCase("FlowFieldTableObsoleteRemoved")]
+...
+[TestCase("n")]
+public async Task NoDiagnostic(string testCase)
+{
+    var code = await File.ReadAllTextAsync($"{testCase}.al").ConfigureAwait(false);
+    var fixture = RoslynFixtureFactory.Create<Analyzer.FlowFieldsShouldNotBeEditable>();
+    fixture.NoDiagnosticAtAllMarkers(code, DiagnosticIds.FlowFieldsShouldNotBeEditable);
 }
 ```
 
 #### Example: Test code fix behavior
 
+Create two files: `current.al` and `expected.al`.
+Place the diagnostic marker in the `current.al` and in `expected.al` define the expected result without the markers.
+
+##### current.al
+
+```AL
+table 50100 MyTable
+{
+    fields
+    {
+        field(1; MyField; Integer) { }
+        [|field(2; MyCalcField; Boolean)|]
+        {
+            FieldClass = FlowField;
+            CalcFormula = exist(MyTable where (MyField = field(MyField)));
+        }
+    }
+}
+
+```
+
+##### expected.al
+
+```AL
+table 50100 MyTable
+{
+    fields
+    {
+        field(1; MyField; Integer) { }
+        field(2; MyCalcField; Boolean)
+        {
+            FieldClass = FlowField;
+            CalcFormula = exist(MyTable where (MyField = field(MyField)));
+            Editable = false;
+        }
+    }
+}
+
+```
+
+Create a C# class to execute the tests.
+
 ```C#
 [Test]
-public void TestSimpleProperty()
+[TestCase("SingleFlowFieldIsEditable")]
+public async Task HasFix(string testCase)
 {
-    const string markupCode = @"
-class C
-{
-    public bool P1 { get; [|private set;|] }
-}";
+    var currentCode = await File.ReadAllTextAsync("current.al").ConfigureAwait(false);
+    var currentCode = await File.ReadAllTextAsync("expected.al").ConfigureAwait(false);
 
-    const string expected = @"
-class C
-{
-    public bool P1 { get; }
-}";
-
-    var fixture = RoslynFixtureFactory.Create<UseGetterOnlyAutoPropertyCodeFix>();
-    fixture.TestCodeFix(markupCode, expected, DiagnosticDescriptors.UseGetterOnlyAutoProperty);
-}
-```
-Instead of the diagnostic descriptor, you can also use Diagnostic Id (error code) to identify the issue which should be fixed by tested code fix. This allows testing code fixes which respond to standard C# compiler errors such as `CS0736`.
-
-### Example: Test code fix that fixes issue reported by provided `DiagnosticAnalyzer`
-
-```csharp
-public class SampleTest
-{   
-
-    [Test]
-    public void should_be_able_fix_issue_reported_by_analyzer()
-    {
-
-        var fixture = RoslynFixtureFactory.Create<UseGetterOnlyAutoPropertyCodeFix>(new ()
+    var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditableCodeFixProvider>(
+        new CodeFixTestFixtureConfig
         {
-            AdditionalAnalyzers = new [] {
-                new[] { new UseGetterOnlyAutoPropertyAnalyzer()
-            }
+            AdditionalAnalyzers = [new Analyzer.FlowFieldsShouldNotBeEditable()]
         });
 
-        fixture.TestCodeFix(/*Here comes code with issue */, /*Here comes fixed code*/, /*Diagnostic Id*/);
-    }
+    fixture.TestCodeFix(currentCode, expectedCode, DiagnosticDescriptors.FlowFieldsShouldNotBeEditable);
 }
 ```
 
-#### Example: Test code refactoring behavior
+### Basic folder structure
 
-```C#
-[Test]
-public void SimpleTest()
-{
-    const string markupCode = @"
-class C
-{
-    void M()
-    {
-        var s = [|string.Format(""{0}"", 42)|];
-    }
-}";
+Working with `.al` files instead of declaring the code inline the test method itself, requires a structure. A example for this could be something like this.
 
-    const string expected = @"
-class C
-{
-    void M()
-    {
-        var s = $""{42}"";
-    }
-}";
-
-    var fixture = RoslynFixtureFactory.Create<SampleCodeRefactoringProvider>();
-    fixture.TestCodeRefactoring(markupCode, expected);
-}
-```
-
-#### Example: Test completion provider based on expected suggestions
-
-```csharp
-[Test]
-public void SimpleTest()
-{
-    const string markupCode = @"
-class C
-{
-    void M()
-    {
-        var s = string.Format([||], 42);
-    }
-}";
-
-    var fixture = RoslynFixtureFactory.Create<SampleCompletionProvider>();
-
-    fixture.TestCompletion(markupCode, new []
-    {
-        "first expected suggestion",
-        "second expected suggestion"
-    });
-}
-```
-
-#### Example: Test completion provider based on custom checks
-```csharp
-[Test]
-public void SimpleTest()
-{
-    const string markupCode = @"
-class C
-{
-    void M()
-    {
-        var s = string.Format([||], 42);
-    }
-}";
-
-    var fixture = RoslynFixtureFactory.Create<SampleCompletionProvider>();
-
-    fixture.TestCompletion(markupCode, (ImmutableArray<CompletionItem> suggestions) =>
-    {
-        //TODO: Custom assertions
-    });
-}
+```bash
+├───MyCodeAnalyzer.Test
+│   └──Rules
+│      ├───FlowFieldsShouldNotBeEditable
+│      │   ├───HasDiagnostic
+│      │   │   ├───FlowFieldEditable.al
+│      │   │   ├───FlowFieldEditableWithoutComment.al
+│      │   │   └───X.al
+│      │   └───NoDiagnostic
+│      │   │   ├───FlowFieldObsoleteRemoved.al
+│      │   │   ├───FlowFieldTableObsoleteRemoved.al
+│      │   │   └───X.al
+│      │   └───HasFix
+│      │   │   └───SingleFlowFieldIsEditable
+│      │   │   │   ├───current.al
+│      │   │   │   └───expected.al
+│      │   │   └───SingleFlowFieldIsEditableWithComment
+│      │   │   │   ├───current.al
+│      │   │   │   └───expected.al
+│      ├───MyOtherDiagnostic
+│      │   ├───HasDiagnostic
+│      │   └───NoDiagnostic
+│      │   └───HasFix
 ```
 
 ## Code comparison
@@ -282,3 +272,8 @@ From line 124:
 However, when the test is run with the attached debugger, an external `diff tool` is launched to present the differences. RoslynTestKit is using under the hood the [ApprovalTests.Net](https://github.com/approvals/ApprovalTests.Net) so a wide range of diff tools on `Windows`, `Linux` and `Mac` are supported.
 
 ![example visual diff](doc/diff.png)
+
+## Contributors
+Appreciation to all the amazing contributors who made this happen.
+
+A special thank you to [@christophstuber](https://github.com/christophstuber}), who originally developed this for AL Language and made it available with the [LinterCop](https://github.com/StefanMaron/BusinessCentral.LinterCop) and to [@ans-bar-bm](https://github.com/ans-bar-bm) for implementing multiple test markers.
