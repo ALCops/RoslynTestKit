@@ -1,0 +1,88 @@
+name: Setup BC Dev Tools
+description: Downloads and extracts BC Development Tools assets to specified folder
+
+inputs:
+  version-number:
+    description: Specify specific version to download
+    required: true
+  target-path:
+    description: Target path to extract files
+    required: false
+    default: Microsoft.Dynamics.BusinessCentral.Development.Tools
+
+runs:
+  using: composite
+  steps:
+    - name: Get source for BC Dev Tools
+      id: get-bc-devtools
+      shell: pwsh
+      run: |
+        # Retrieve source Uri from Marketplace
+        $sourceUri = ${{github.action_path}}/Marketplace.ps1
+        echo "source-uri=$($sourceUri" >> $env:GITHUB_OUTPUT
+
+    - name: Download BC DevTools asset
+      id: download-bc-devtools-asset
+      if: ${{ steps.get-bc-devtools.outputs.source-uri != '' }}
+      shell: pwsh
+      env:
+        ASSET_URI: ${{ steps.get-bc-devtools.outputs.source-uri }}
+        RUNNER_TEMP: ${{ runner.temp }}
+      run: |
+        Write-Output "Starting BC DevTools asset download..."
+        Write-Output "Asset URI: $($env:ASSET_URI)"
+
+        $ErrorActionPreference = 'Stop'
+        Set-StrictMode -Version Latest
+
+        if (-not $env:ASSET_URI) { throw 'ASSET_URI is empty' }
+
+        try {
+            $uri = [Uri]$env:ASSET_URI
+        }
+        catch {
+            throw "ASSET_URI is not a valid URI: $($env:ASSET_URI)"
+        }
+        if (-not $uri.IsAbsoluteUri) { throw 'ASSET_URI must be absolute' }
+
+        $targetDir = $env:RUNNER_TEMP
+        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+
+        $fileName = [IO.Path]::GetFileName($uri.AbsolutePath)
+        if ([string]::IsNullOrWhiteSpace($fileName)) { throw 'Unable to resolve file name from URI' }
+        $downloadPath = Join-Path $targetDir $fileName
+
+        $maxAttempts = 3
+        for ($i = 1; $i -le $maxAttempts; $i++) {
+            try {
+                $sw = [Diagnostics.Stopwatch]::StartNew()
+                Invoke-WebRequest -Uri $uri -OutFile $downloadPath -MaximumRedirection 5 -TimeoutSec 600
+                $sw.Stop()
+
+                if (-not (Test-Path -LiteralPath $downloadPath)) { throw 'File not found after download' }
+                $sizeBytes = (Get-Item -LiteralPath $downloadPath).Length
+                $sizeMB = [Math]::Round($sizeBytes / 1MB, 2)
+                Write-Output "Downloaded $fileName ($sizeMB MB) in $([Math]::Round($sw.Elapsed.TotalSeconds,1)) s"
+                break
+            }
+            catch {
+                if ($i -eq $maxAttempts) { throw $_ }
+                $backoff = [int][Math]::Pow(2, $i)  # 2,4
+                Write-Warning "Download attempt $i failed: $($_.Exception.Message). Retrying in $backoff s..."
+                Start-Sleep -Seconds $backoff
+            }
+        }
+
+        "path=$downloadPath"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "filename=$fileName"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+    - name: Extract BC DevTools asset
+      shell: pwsh
+      env:
+        ARCHIVE_PATH: ${{ steps.download-bc-devtools-asset.outputs.path }}
+        TARGET_PATH: ${{ inputs.target-path }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        Write-Output "Extracting $env:ARCHIVE_PATH ..."
+
+        & "$env:ACTION_PATH\Extract-RequiredFiles.ps1" -DestinationPath $env:TARGET_PATH -ArchivePath $env:ARCHIVE_PATH -PathInArchive 'extension/bin/Analyzers'
