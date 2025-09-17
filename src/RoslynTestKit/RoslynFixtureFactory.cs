@@ -1,7 +1,7 @@
-﻿using Microsoft.CodeAnalysis.CodeFixes;
-using Microsoft.CodeAnalysis.CodeRefactorings;
-using Microsoft.CodeAnalysis.Completion;
-using Microsoft.CodeAnalysis.Diagnostics;
+﻿using Microsoft.Dynamics.Nav.CodeAnalysis.CodeFixes;
+using Microsoft.Dynamics.Nav.CodeAnalysis.CodeRefactoring;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Completion;
 
 namespace RoslynTestKit
 {
