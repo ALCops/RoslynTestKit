@@ -1,9 +1,9 @@
 ﻿using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Text;
+using Microsoft.Dynamics.Nav.CodeAnalysis;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using RoslynTestKit.Utils;
 
 namespace RoslynTestKit

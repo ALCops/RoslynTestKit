@@ -1,6 +1,7 @@
 ﻿using System;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Text;
+using Microsoft.Dynamics.Nav.CodeAnalysis;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Text;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 
 namespace RoslynTestKit.Utils
 {

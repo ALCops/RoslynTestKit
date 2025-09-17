@@ -2,9 +2,9 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Completion;
-using Microsoft.CodeAnalysis.Text;
+using Microsoft.Dynamics.Nav.CodeAnalysis;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Completion;
 using RoslynTestKit.Utils;
 
 namespace RoslynTestKit
@@ -55,7 +55,7 @@ namespace RoslynTestKit
 
         private void VerifyExpectations(Document document, IDiagnosticLocator locator, CompletionTrigger? trigger, Action<ImmutableArray<CompletionItem>> assertion)
         {
-            var selectedTrigger = trigger ?? CompletionTrigger.Invoke;
+            var selectedTrigger = trigger ?? CompletionTrigger.Default;
             var provider = CreateProvider();
             var span = locator.GetSpan();
             var options = document.GetOptionsAsync(CancellationToken.None).GetAwaiter().GetResult();

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Completion;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Completion;
 
 namespace RoslynTestKit
 {
@@ -9,7 +9,7 @@ namespace RoslynTestKit
         public TestCompletionService(Workspace workspace, string language, CompletionProvider provider)
             : base(workspace )
         {
-            Language = language;
+            // Language = language;
             this.TestProviders =  new[] {provider}.ToImmutableArray();
         }
 
@@ -20,6 +20,6 @@ namespace RoslynTestKit
             return TestProviders;
         }
 
-        public override string Language { get; }
+        // public override string Language { get; }
     }
 }
