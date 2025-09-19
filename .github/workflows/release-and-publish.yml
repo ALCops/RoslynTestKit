@@ -99,6 +99,7 @@ jobs:
         run: >
           dotnet build src/RoslynTestKit.sln --no-restore --configuration Release
           /p:ContinuousIntegrationBuild=true
+          /p:Deterministic=true
           /p:RepositoryBranch=${{ github.ref_name }}
           /p:RepositoryCommit=${{ steps.gitversion.outputs.sha }}
           /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
@@ -108,11 +109,16 @@ jobs:
 
       - name: Pack
         run: >
-          dotnet pack src/RoslynTestKit/RoslynTestKit.csproj --no-build --configuration Release
+          dotnet pack src/RoslynTestKit/RoslynTestKit.csproj --configuration Release
           /p:ContinuousIntegrationBuild=true
+          /p:Deterministic=true
           /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
           /p:RepositoryBranch=${{ github.ref_name }}
           /p:RepositoryCommit=${{ steps.gitversion.outputs.sha }}
+          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }}
+          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }}
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
           --output ./packages
 
       - name: Validate package manifest
