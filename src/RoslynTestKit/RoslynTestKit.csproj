@@ -1,25 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Authors>Dustin Campbell, Ivan Yochev, Cezary Piątek, Christoph Stuber, Ansgar Barthel, Arthur van de Vondervoort</Authors>
     <Title>RoslynTestKit</Title>
     <Description>A lightweight framework for creating unit tests for Roslyn diagnostic analyzers, code fixes and refactorings.</Description>
+    <Authors>Dustin Campbell, Ivan Yochev, Cezary Piątek, Christoph Stuber, Ansgar Barthel, Arthur van de Vondervoort</Authors>
     <Copyright>Copyright 2015-2025 by Dustin Campbell, Ivan Yochev, Cezary Piątek, Christoph Stuber, Ansgar Barthel, Arthur van de Vondervoort</Copyright>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageLicenseUrl>https://github.com/ALCops/RoslynTestKit/blob/master/License.txt</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/ALCops/RoslynTestKit</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/ALCops/RoslynTestKit</RepositoryUrl>
-    <PackageTags>Roslyn CodeAnalysis test testing tdd analyzer fixes refactor refactoring AL Business Central</PackageTags>
-    <NeutralLanguage>en</NeutralLanguage>
-    <Language>en-US</Language>
-    <PackageReleaseNotes></PackageReleaseNotes>
+    <PackageTags>Roslyn CodeAnalysis test testing tdd analyzer fixes refactor refactoring AL BusinessCentral</PackageTags>
     <PackageId>ALCops.RoslynTestKit</PackageId>
     <Product>RoslynTestKit</Product>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
