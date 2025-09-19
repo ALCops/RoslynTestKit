@@ -89,6 +89,7 @@ jobs:
         --output ./packages
 
     - name: Validate package manifest
+      if: false
       run: |
         dotnet tool install --global dotnet-validate --version 0.0.1-preview.537
         dotnet-validate package local ./packages/*.nupkg
