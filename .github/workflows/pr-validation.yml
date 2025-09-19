@@ -87,7 +87,7 @@ jobs:
 
     - name: Validate package manifest
       run: |
-        dotnet tool install --global dotnet-validate --version 0.0.1-preview.304
+        dotnet tool install --global dotnet-validate --version 0.0.1-preview.537
         dotnet-validate package local ./packages/*.nupkg
 
     - name: Upload package
