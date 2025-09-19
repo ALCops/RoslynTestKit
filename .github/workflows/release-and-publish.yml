@@ -95,18 +95,6 @@ jobs:
       - name: Restore
         run: dotnet restore src/RoslynTestKit.sln
 
-      - name: Build
-        run: >
-          dotnet build src/RoslynTestKit.sln --no-restore --configuration Release
-          /p:ContinuousIntegrationBuild=true
-          /p:Deterministic=true
-          /p:RepositoryBranch=${{ github.ref_name }}
-          /p:RepositoryCommit=${{ steps.gitversion.outputs.sha }}
-          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
-          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }}
-          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }}
-          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
-
       - name: Pack
         run: >
           dotnet pack src/RoslynTestKit/RoslynTestKit.csproj --configuration Release
