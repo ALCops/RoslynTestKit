@@ -78,11 +78,19 @@ jobs:
           useConfigFile: true
           overrideConfig: ${{ steps.gv.outputs.override }}
 
-      - name: Setup BC DevTools
-        id: setup-bc-devtools
+      - name: Setup BC DevTools (netstandard2.1)
+        id: setup-bc-devtools-netstandard21
         uses: ./.github/actions/setup-bc-devtools
         with:
-          version-number: '10.0.687650'          
+          version-number: '12.0.875970'
+          target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools/netstandard2.1'
+
+      - name: Setup BC DevTools (net8.0)
+        id: setup-bc-devtools-net80
+        uses: ./.github/actions/setup-bc-devtools
+        with:
+          version-number: '16.0.1463980'
+          target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools/net8.0'
 
       - name: Restore
         run: dotnet restore src/RoslynTestKit.sln
