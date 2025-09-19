@@ -111,6 +111,7 @@ jobs:
           dotnet pack src/RoslynTestKit/RoslynTestKit.csproj --no-build --configuration Release
           /p:ContinuousIntegrationBuild=true
           /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+          /p:RepositoryBranch=${{ github.ref_name }}
           /p:RepositoryCommit=${{ steps.gitversion.outputs.sha }}
           --output ./packages
 
