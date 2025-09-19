@@ -80,7 +80,8 @@ jobs:
 
     - name: Pack
       run: >
-        dotnet pack src/RoslynTestKit/RoslynTestKit.csproj --no-build --configuration Release
+        dotnet pack src/RoslynTestKit/RoslynTestKit.csproj --configuration Release
+        /p:ContinuousIntegrationBuild=true 
         /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
         --output ./packages
 
