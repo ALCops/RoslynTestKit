@@ -21,6 +21,7 @@
     <Product>RoslynTestKit</Product>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <Nullable>enable</Nullable>
+    <debugType>embedded</debugType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
