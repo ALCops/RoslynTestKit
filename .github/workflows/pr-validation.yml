@@ -70,10 +70,11 @@ jobs:
     - name: Restore
       run: dotnet restore src/RoslynTestKit.sln
 
-    - name: Build (versioned)
+    - name: Build
       run: >
         dotnet build src/RoslynTestKit.sln --no-restore --configuration Release
         /p:ContinuousIntegrationBuild=true
+        /p:Deterministic=true
         /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
         /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }}
         /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }}
