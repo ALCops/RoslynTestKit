@@ -98,6 +98,7 @@ jobs:
       - name: Build
         run: >
           dotnet build src/RoslynTestKit.sln --no-restore --configuration Release
+          /p:ContinuousIntegrationBuild=true
           /p:RepositoryBranch=${{ github.ref_name }}
           /p:RepositoryCommit=${{ steps.gitversion.outputs.sha }}
           /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
