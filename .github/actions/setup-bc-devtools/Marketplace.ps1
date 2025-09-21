@@ -55,7 +55,7 @@ $payload = @{
             sortOrder  = 0
         }
     )
-    assetTypes = @()
+    assetTypes = @( "Microsoft.VisualStudio.Services.VSIXPackage")
     flags      = 131 # IncludeVersions, IncludeFiles, IncludeAssetUri, see https://github.com/microsoft/vscode/blob/12ae331012923024bedaf873ba4259a8c64db020/src/vs/platform/extensionManagement/common/extensionGalleryService.ts#L86
 }
 
