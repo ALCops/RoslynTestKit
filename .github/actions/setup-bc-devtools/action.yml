@@ -19,7 +19,7 @@ runs:
       run: |
         # Retrieve source Uri from Marketplace
         $sourceUri = ${{github.action_path}}/Marketplace.ps1 -Version ${{ inputs.version-number }}
-        "source-uri=$sourceUri" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        echo "source-uri=$sourceUri" >> $env:GITHUB_OUTPUT
 
     - name: Download BC DevTools asset
       id: download-bc-devtools-asset
@@ -30,7 +30,7 @@ runs:
       run: |
         # Download BC DevTools asset
         $downloadPath = ${{github.action_path}}/Download-BcDevToolsAsset.ps1 -AssetUri $env:ASSET_URI
-        "download-path=$downloadPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        echo "download-path=$downloadPath" >> $env:GITHUB_OUTPUT
 
     - name: Extract BC DevTools asset
       shell: pwsh
