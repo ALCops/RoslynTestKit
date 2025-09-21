@@ -1,0 +1,82 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - '**/*.sln'
+      - '**/*.csproj'
+      - '**/*.props'
+      - '**/*.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'nuget.config'
+      - '.config/dotnet-tools.json'
+      - '.github/workflows/**'
+      - '!**/*.md'
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+
+jobs:
+  build-pack-validate:
+    name: Build, Pack and Validate
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.draft == false }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/packages.lock.json
+            nuget.config
+
+      - name: Setup BC DevTools (netstandard2.1)
+        uses: ./.github/actions/setup-bc-devtools
+        with:
+          version-number: '12.0.875970'
+          target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools/netstandard2.1'
+
+      - name: Setup BC DevTools (net8.0)
+        uses: ./.github/actions/setup-bc-devtools
+        with:
+          version-number: '16.0.1463980'
+          target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools/net8.0'
+
+      - name: Restore
+        run: dotnet restore src/RoslynTestKit.sln
+
+      - name: Build
+        # Disabled as 'dotnet pack' also builds the project
+        if: false 
+        run: >
+          dotnet build src/RoslynTestKit.sln
+          --configuration Release
+          --no-restore
+
+      - name: Pack
+        run: >
+          dotnet pack src/RoslynTestKit/RoslynTestKit.csproj
+          --configuration Release
+          --no-restore
+          --include-symbols
+          --output ./artifacts
+          /p:ContinuousIntegrationBuild=true
+          /p:EmbedUntrackedSources=true
+          /p:SymbolPackageFormat=snupkg
+
+      - name: Validate
+        run: |
+          dotnet tool install --global dotnet-validate --version 0.0.1-preview.537
+          dotnet-validate package local ./artifacts/*.nupkg

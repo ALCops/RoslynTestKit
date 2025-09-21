@@ -13,13 +13,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Get source for BC Dev Tools
+    - name: Get BC Dev Tools for Marketplace
       id: get-bc-devtools
       shell: pwsh
       run: |
         # Retrieve source Uri from Marketplace
         $sourceUri = ${{github.action_path}}/Marketplace.ps1 -Version ${{ inputs.version-number }}
-        echo "source-uri=$($sourceUri)" >> $env:GITHUB_OUTPUT
+        "source-uri=$sourceUri" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
     - name: Download BC DevTools asset
       id: download-bc-devtools-asset
@@ -28,7 +28,7 @@ runs:
       env:
         ASSET_URI: ${{ steps.get-bc-devtools.outputs.source-uri }}
       run: |
-        #  Download BC DevTools asset
+        # Download BC DevTools asset
         $downloadPath = ${{github.action_path}}/Download-BcDevToolsAsset.ps1 -AssetUri $env:ASSET_URI
         "download-path=$downloadPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
@@ -39,6 +39,7 @@ runs:
         TARGET_PATH: ${{ inputs.target-path }}
         ACTION_PATH: ${{ github.action_path }}
       run: |
-        Write-Output "Extracting $env:ARCHIVE_PATH ..."
+        # Extract BC DevTools asset
+        Write-Output "Extracting $($env:ARCHIVE_PATH)..."
 
         & "$env:ACTION_PATH\Extract-RequiredFiles.ps1" -DestinationPath $env:TARGET_PATH -ArchivePath $env:ARCHIVE_PATH -PathInArchive 'extension/bin/Analyzers'
