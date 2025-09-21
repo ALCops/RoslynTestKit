@@ -1,16 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
+    <PackageId>ALCops.RoslynTestKit</PackageId>
     <Title>RoslynTestKit</Title>
     <Description>A lightweight framework for creating unit tests for Roslyn diagnostic analyzers, code fixes and refactorings.</Description>
     <Authors>Dustin Campbell, Ivan Yochev, Cezary Piątek, Christoph Stuber, Ansgar Barthel, Arthur van de Vondervoort</Authors>
-    <Copyright>Copyright 2015-2025 by Dustin Campbell, Ivan Yochev, Cezary Piątek, Christoph Stuber, Ansgar Barthel, Arthur van de Vondervoort</Copyright>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <PackageLicenseUrl>https://github.com/ALCops/RoslynTestKit/blob/master/License.txt</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/ALCops/RoslynTestKit</PackageProjectUrl>
-    <PackageTags>Roslyn CodeAnalysis test testing tdd analyzer fixes refactor refactoring AL BusinessCentral</PackageTags>
-    <PackageId>ALCops.RoslynTestKit</PackageId>
     <Product>RoslynTestKit</Product>
+    <RepositoryUrl>https://github.com/ALCops/RoslynTestKit</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>Roslyn CodeAnalysis test testing tdd analyzer fixes refactor refactoring AL Business Central</PackageTags>
+    <NeutralLanguage>en</NeutralLanguage>
+    <Language>en-US</Language>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
@@ -21,7 +22,9 @@
 
   <!-- ms-dynamics-smb.al-12.0.875970 with FileVersion 12.0.13.24028 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
-    <PackageReference Include="ApprovalTests" Version="5.4.4" />
+    <PackageReference Include="ApprovalTests" Version="5.4.4"
+                      PrivateAssets="all"
+                      ExcludeAssets="build;buildTransitive;analyzers;contentFiles;native;runtime" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="3.1.0" />
     <Reference Include="Microsoft.Dynamics.Nav.CodeAnalysis">
         <SpecificVersion>False</SpecificVersion>
@@ -37,7 +40,9 @@
 
   <!-- ms-dynamics-smb.al-16.0.1463980 with FileVersion 16.0.22.22232 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <PackageReference Include="ApprovalTests" Version="5.8.0" />
+    <PackageReference Include="ApprovalTests" Version="5.8.0"
+                      PrivateAssets="all"
+                      ExcludeAssets="build;buildTransitive;analyzers;contentFiles;native;runtime" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.8.0" />
     <Reference Include="Microsoft.Dynamics.Nav.CodeAnalysis">
         <SpecificVersion>False</SpecificVersion>

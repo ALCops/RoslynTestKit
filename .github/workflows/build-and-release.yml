@@ -1,0 +1,114 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - '**/*.sln'
+      - '**/*.csproj'
+      - '**/*.props'
+      - '**/*.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'nuget.config'
+      - '.config/dotnet-tools.json'
+      - '.github/workflows/**'
+      - '!**/*.md'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOTNET_NOLOGO: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/packages.lock.json
+            nuget.config
+
+      - name: Setup BC DevTools - netstandard2.1
+        uses: ./.github/actions/setup-bc-devtools
+        with:
+          version-number: '12.0.875970'
+          target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools/netstandard2.1'
+
+      - name: Setup BC DevTools - net8.0
+        uses: ./.github/actions/setup-bc-devtools
+        with:
+          version-number: '16.0.1463980'
+          target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools/net8.0'
+
+      - name: Restore
+        run: dotnet restore src/RoslynTestKit.sln
+
+      - name: GitVersion - Setup
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: '5.x'
+
+      - name: GitVersion - Determine
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3
+        with:
+          useConfigFile: true
+
+      - name: Pack
+        run: >
+          dotnet pack src/RoslynTestKit/RoslynTestKit.csproj
+          --configuration Release
+          --no-restore
+          --include-symbols
+          --output ./artifacts
+          /p:ContinuousIntegrationBuild=true
+          /p:EmbedUntrackedSources=true
+          /p:SymbolPackageFormat=snupkg
+          /p:RepositoryType=git
+          /p:RepositoryUrl=https://github.com/${{ github.repository }}
+          /p:RepositoryCommit=${{ steps.gitversion.outputs.Sha }}
+          /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }}
+          /p:FileVersion=${{ steps.gitversion.outputs.AssemblySemFileVer }}
+          /p:InformationalVersion="${{ steps.gitversion.outputs.InformationalVersion }}"
+
+      - name: Validate
+        run: |
+          dotnet tool install --global dotnet-validate --version 0.0.1-preview.537
+          dotnet-validate package local ./artifacts/*.nupkg        
+
+      - name: Publish to GitHub Packages
+        run: >
+          dotnet nuget push "./artifacts/*.nupkg"
+          --no-symbols
+          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          --skip-duplicate
+          
+      - name: Publish to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "NUGET_API_KEY not configured"; exit 1
+          fi
+          dotnet nuget push ./packages/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
