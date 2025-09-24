@@ -42,10 +42,17 @@ jobs:
             **/packages.lock.json
             nuget.config
 
-      - name: Setup BC DevTools
+      - name: Setup BC DevTools - netstandard2.0
         uses: ./.github/actions/setup-bc-devtools
         with:
-          version-number: '12.0.875970'
+          version-number: '12.0.779795'
+          target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools\netstandard2.0'
+
+      - name: Setup BC DevTools - net8.0
+        uses: ./.github/actions/setup-bc-devtools
+        with:
+          version-number: '16.0.1463980'
+          target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools\net8.0'
 
       - name: Restore
         run: dotnet restore src/RoslynTestKit.sln
