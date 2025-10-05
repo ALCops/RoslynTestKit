@@ -210,6 +210,57 @@ public async Task HasFix(string testCase)
 }
 ```
 
+### NavCodeAnalysisBase
+The `NavCodeAnalysisBase` class is a base class for analyzer tests that need to behave differently depending on the version of the AL Language (`Microsoft.Dynamics.Nav.CodeAnalysis`). By inheriting from this class, your tests automatically gain utilities for:
+* Detecting the currently loaded Microsoft.Dynamics.Nav.CodeAnalysis assembly version.
+* Comparing that version against minimum/maximum requirements.
+* Skipping or adjusting tests when features are introduced, changed, or removed between versions.
+
+```CS
+// Example 1: Skip specific test cases based on version
+[TestCase("FeatureOne")]
+[TestCase("FeatureTwo")]
+public void TestFeatures(string testCase)
+{
+    SkipTestIfVersionIsTooLow(
+        ["FeatureOne"],
+        testCase,
+        "15.0.0"
+    );
+    
+    SkipTestIfVersionIsTooHigh(
+        ["FeatureTwo"],
+        testCase,
+        "14.9.99"
+    );
+    // Test code
+}
+
+// Example 2: Require minimum version for entire test
+[Test]
+public void TestModernFeature()
+{
+    RequireMinimumVersion("15.0.0", "Requires new API");
+    // Test code that uses version 15+ features
+}
+
+// Example 3: Test feature that only exists in specific range
+[Test]
+public void TestTransitionalFeature()
+{
+    RequireVersionRange("15.0.0", "16.5.0", "Feature deprecated after 16.5");
+    // Test code
+}
+
+// Example 4: Ensure version detection worked
+[Test]
+public void TestVersionDependentBehavior()
+{
+    RequireVersionDetection();
+    // Now safe to use version comparison methods
+}
+```
+
 ### Basic folder structure
 
 Working with `.al` files instead of declaring the code inline the test method itself, requires a structure. A example for this could be something like this.
