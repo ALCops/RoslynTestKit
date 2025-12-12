@@ -18,8 +18,17 @@ namespace RoslynTestKit
     public sealed class AdhocWorkspace : Workspace
     {
 #if NET8_0_OR_GREATER
-        private static readonly object _reflectionLock = new object();
-        private static (MethodInfo Method, ParameterInfo[] Parameters)? _cachedCreateMethodInfo;
+        private static readonly Lazy<(MethodInfo Method, ParameterInfo[] Parameters)> _projectInfoCreateMethod =
+            new(() =>
+            {
+                var createMethod = typeof(ProjectInfo)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .FirstOrDefault(m => m.Name == "Create")
+                    ?? throw new InvalidOperationException(
+                        "Could not find ProjectInfo.Create method. Ensure Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces is referenced.");
+
+                return (createMethod, createMethod.GetParameters());
+            }, LazyThreadSafetyMode.PublicationOnly);
 #endif
 
         public AdhocWorkspace(HostServices host, string workspaceKind = "Custom")
@@ -95,7 +104,7 @@ namespace RoslynTestKit
         /// </remarks>
         private static ProjectInfo CreateProjectInfoViaReflection(string name, string language)
         {
-            var (method, parameters) = GetCachedCreateMethod();
+            var (method, parameters) = _projectInfoCreateMethod.Value;
             var args = BuildMethodArguments(parameters, name, language);
 
             var result = method.Invoke(null, args);
@@ -105,38 +114,6 @@ namespace RoslynTestKit
             }
 
             return projectInfo;
-        }
-
-        /// <summary>
-        /// Gets the cached MethodInfo and ParameterInfo for ProjectInfo.Create, initializing if necessary.
-        /// Thread-safe using double-checked locking pattern.
-        /// </summary>
-        private static (MethodInfo Method, ParameterInfo[] Parameters) GetCachedCreateMethod()
-        {
-            var cached = _cachedCreateMethodInfo;
-            if (cached != null)
-            {
-                return cached.Value;
-            }
-
-            lock (_reflectionLock)
-            {
-                cached = _cachedCreateMethodInfo;
-                if (cached != null)
-                {
-                    return cached.Value;
-                }
-
-                var createMethod = typeof(ProjectInfo)
-                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                    .FirstOrDefault(m => m.Name == "Create")
-                    ?? throw new InvalidOperationException(
-                        "Could not find ProjectInfo.Create method. Ensure Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces is referenced.");
-
-                var result = (createMethod, createMethod.GetParameters());
-                _cachedCreateMethodInfo = result;
-                return result;
-            }
         }
 
         /// <summary>
