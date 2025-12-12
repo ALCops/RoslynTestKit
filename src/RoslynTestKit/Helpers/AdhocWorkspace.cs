@@ -107,19 +107,48 @@ namespace RoslynTestKit
             var args = new object?[parameters.Length];
 
             // The first 5 parameters are always: id, version, name, assemblyName, language (required)
-            // All other parameters are optional and will use Type.Missing to get their default values
+            // All other parameters are optional - use their default values via ParameterInfo.DefaultValue
             for (int i = 0; i < parameters.Length; i++)
             {
-                var paramName = parameters[i].Name?.ToLowerInvariant();
-                args[i] = paramName switch
+                var param = parameters[i];
+                var paramName = param.Name?.ToLowerInvariant();
+
+                // Handle the 5 required parameters explicitly
+                if (paramName == "id")
                 {
-                    "id" => ProjectId.CreateNewId(),
-                    "version" => VersionStamp.Create(),
-                    "name" => name,
-                    "assemblyname" => name,
-                    "language" => language,
-                    _ => Type.Missing // Use default value for optional parameters
-                };
+                    args[i] = ProjectId.CreateNewId();
+                }
+                else if (paramName == "version")
+                {
+                    args[i] = VersionStamp.Create();
+                }
+                else if (paramName == "name")
+                {
+                    args[i] = name;
+                }
+                else if (paramName == "assemblyname")
+                {
+                    args[i] = name;
+                }
+                else if (paramName == "language")
+                {
+                    args[i] = language;
+                }
+                // For optional parameters, use their default value or appropriate fallback
+                else if (param.HasDefaultValue)
+                {
+                    args[i] = param.DefaultValue;
+                }
+                else if (!param.ParameterType.IsValueType)
+                {
+                    // Reference types without default - use null
+                    args[i] = null;
+                }
+                else
+                {
+                    // Value types without default - use default(T)
+                    args[i] = Activator.CreateInstance(param.ParameterType);
+                }
             }
 
             var result = _cachedCreateMethod.Invoke(null, args);
