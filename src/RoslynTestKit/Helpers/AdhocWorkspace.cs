@@ -18,8 +18,8 @@ namespace RoslynTestKit
     public sealed class AdhocWorkspace : Workspace
     {
 #if NET8_0_OR_GREATER
-        private static MethodInfo? _cachedCreateMethod;
-        private static ParameterInfo[]? _cachedParameters;
+        private static readonly object _reflectionLock = new object();
+        private static (MethodInfo Method, ParameterInfo[] Parameters)? _cachedCreateMethodInfo;
 #endif
 
         public AdhocWorkspace(HostServices host, string workspaceKind = "Custom")
@@ -80,8 +80,6 @@ namespace RoslynTestKit
 #if NET8_0_OR_GREATER
         public Project? AddProject(string name, string language)
         {
-            // There's a binary compatibility issue caused by a breaking change in the ProjectInfo.Create method signature between version v17.0.28.6483 and v17.0.28.26016 of Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll.
-            // hence we use reflection to call the method in a way that works for both versions
             var info = CreateProjectInfoViaReflection(name, language);
             return AddProject(info);
         }
@@ -90,74 +88,106 @@ namespace RoslynTestKit
         /// Creates a ProjectInfo instance using reflection to handle different versions
         /// of Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces that have different method signatures.
         /// </summary>
+        /// <remarks>
+        /// This method is necessary because the ProjectInfo.Create method signature changed between
+        /// version v17.0.28.6483 and v17.0.28.26016 of Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll.
+        /// By using reflection, we can call the method regardless of which version is loaded at runtime.
+        /// </remarks>
         private static ProjectInfo CreateProjectInfoViaReflection(string name, string language)
         {
-            if (_cachedCreateMethod == null)
-            {
-                // Find the Create method - there should be only one static Create method
-                _cachedCreateMethod = typeof(ProjectInfo)
-                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                    .FirstOrDefault(m => m.Name == "Create")
-                    ?? throw new InvalidOperationException("Could not find ProjectInfo.Create method via reflection.");
+            var (method, parameters) = GetCachedCreateMethod();
+            var args = BuildMethodArguments(parameters, name, language);
 
-                _cachedParameters = _cachedCreateMethod.GetParameters();
-            }
-
-            var parameters = _cachedParameters!;
-            var args = new object?[parameters.Length];
-
-            // The first 5 parameters are always: id, version, name, assemblyName, language (required)
-            // All other parameters are optional - use their default values via ParameterInfo.DefaultValue
-            for (int i = 0; i < parameters.Length; i++)
-            {
-                var param = parameters[i];
-                var paramName = param.Name?.ToLowerInvariant();
-
-                // Handle the 5 required parameters explicitly
-                if (paramName == "id")
-                {
-                    args[i] = ProjectId.CreateNewId();
-                }
-                else if (paramName == "version")
-                {
-                    args[i] = VersionStamp.Create();
-                }
-                else if (paramName == "name")
-                {
-                    args[i] = name;
-                }
-                else if (paramName == "assemblyname")
-                {
-                    args[i] = name;
-                }
-                else if (paramName == "language")
-                {
-                    args[i] = language;
-                }
-                // For optional parameters, use their default value or appropriate fallback
-                else if (param.HasDefaultValue)
-                {
-                    args[i] = param.DefaultValue;
-                }
-                else if (!param.ParameterType.IsValueType)
-                {
-                    // Reference types without default - use null
-                    args[i] = null;
-                }
-                else
-                {
-                    // Value types without default - use default(T)
-                    args[i] = Activator.CreateInstance(param.ParameterType);
-                }
-            }
-
-            var result = _cachedCreateMethod.Invoke(null, args);
+            var result = method.Invoke(null, args);
             if (result is not ProjectInfo projectInfo)
             {
                 throw new InvalidOperationException("ProjectInfo.Create did not return a ProjectInfo instance.");
             }
 
             return projectInfo;
+        }
+
+        /// <summary>
+        /// Gets the cached MethodInfo and ParameterInfo for ProjectInfo.Create, initializing if necessary.
+        /// Thread-safe using double-checked locking pattern.
+        /// </summary>
+        private static (MethodInfo Method, ParameterInfo[] Parameters) GetCachedCreateMethod()
+        {
+            var cached = _cachedCreateMethodInfo;
+            if (cached != null)
+            {
+                return cached.Value;
+            }
+
+            lock (_reflectionLock)
+            {
+                cached = _cachedCreateMethodInfo;
+                if (cached != null)
+                {
+                    return cached.Value;
+                }
+
+                var createMethod = typeof(ProjectInfo)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .FirstOrDefault(m => m.Name == "Create")
+                    ?? throw new InvalidOperationException(
+                        "Could not find ProjectInfo.Create method. Ensure Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces is referenced.");
+
+                var result = (createMethod, createMethod.GetParameters());
+                _cachedCreateMethodInfo = result;
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Builds the argument array for calling ProjectInfo.Create via reflection.
+        /// </summary>
+        private static object?[] BuildMethodArguments(ParameterInfo[] parameters, string name, string language)
+        {
+            var args = new object?[parameters.Length];
+
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                args[i] = GetParameterValue(parameters[i], name, language);
+            }
+
+            return args;
+        }
+
+        /// <summary>
+        /// Determines the value to pass for a given parameter of ProjectInfo.Create.
+        /// </summary>
+        private static object? GetParameterValue(ParameterInfo parameter, string name, string language)
+        {
+            var paramName = parameter.Name?.ToLowerInvariant() ?? string.Empty;
+
+            // Handle the required parameters (first 5 in the method signature)
+            return paramName switch
+            {
+                "id" => ProjectId.CreateNewId(),
+                "version" => VersionStamp.Create(),
+                "name" => name,
+                "assemblyname" => name,
+                "language" => language,
+                // For optional parameters, use their declared default value or an appropriate fallback
+                _ => GetDefaultParameterValue(parameter)
+            };
+        }
+
+        /// <summary>
+        /// Gets the default value for an optional parameter.
+        /// </summary>
+        private static object? GetDefaultParameterValue(ParameterInfo parameter)
+        {
+            if (parameter.HasDefaultValue)
+            {
+                return parameter.DefaultValue;
+            }
+
+            // Fallback for parameters without explicit defaults
+            return parameter.ParameterType.IsValueType
+                ? Activator.CreateInstance(parameter.ParameterType)
+                : null;
         }
 #endif
 
