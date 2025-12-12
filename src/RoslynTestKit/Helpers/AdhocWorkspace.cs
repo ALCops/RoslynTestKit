@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+#if NET8_0_OR_GREATER
+using System.Linq;
+using System.Reflection;
+#endif
 using System.Threading;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Text;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
@@ -13,6 +17,11 @@ namespace RoslynTestKit
     /// </summary>
     public sealed class AdhocWorkspace : Workspace
     {
+#if NET8_0_OR_GREATER
+        private static MethodInfo? _cachedCreateMethod;
+        private static ParameterInfo[]? _cachedParameters;
+#endif
+
         public AdhocWorkspace(HostServices host, string workspaceKind = "Custom")
             : base(host, workspaceKind)
         {
@@ -60,11 +69,68 @@ namespace RoslynTestKit
         /// <summary>
         /// Adds a project to the workspace. All previous projects remain intact.
         /// </summary>
+#if NETSTANDARD2_1
         public Project? AddProject(string name, string language)
         {
             var info = ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(), name, name, language);
             return AddProject(info);
         }
+#endif
+
+#if NET8_0_OR_GREATER
+        public Project? AddProject(string name, string language)
+        {
+            // There's a binary compatibility issue caused by a breaking change in the ProjectInfo.Create method signature between version v17.0.28.6483 and v17.0.28.26016 of Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll.
+            // hence we use reflection to call the method in a way that works for both versions
+            var info = CreateProjectInfoViaReflection(name, language);
+            return AddProject(info);
+        }
+
+        /// <summary>
+        /// Creates a ProjectInfo instance using reflection to handle different versions
+        /// of Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces that have different method signatures.
+        /// </summary>
+        private static ProjectInfo CreateProjectInfoViaReflection(string name, string language)
+        {
+            if (_cachedCreateMethod == null)
+            {
+                // Find the Create method - there should be only one static Create method
+                _cachedCreateMethod = typeof(ProjectInfo)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .FirstOrDefault(m => m.Name == "Create")
+                    ?? throw new InvalidOperationException("Could not find ProjectInfo.Create method via reflection.");
+
+                _cachedParameters = _cachedCreateMethod.GetParameters();
+            }
+
+            var parameters = _cachedParameters!;
+            var args = new object?[parameters.Length];
+
+            // The first 5 parameters are always: id, version, name, assemblyName, language (required)
+            // All other parameters are optional and will use Type.Missing to get their default values
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                var paramName = parameters[i].Name?.ToLowerInvariant();
+                args[i] = paramName switch
+                {
+                    "id" => ProjectId.CreateNewId(),
+                    "version" => VersionStamp.Create(),
+                    "name" => name,
+                    "assemblyname" => name,
+                    "language" => language,
+                    _ => Type.Missing // Use default value for optional parameters
+                };
+            }
+
+            var result = _cachedCreateMethod.Invoke(null, args);
+            if (result is not ProjectInfo projectInfo)
+            {
+                throw new InvalidOperationException("ProjectInfo.Create did not return a ProjectInfo instance.");
+            }
+
+            return projectInfo;
+        }
+#endif
 
         /// <summary>
         /// Adds a project to the workspace. All previous projects remain intact.

@@ -45,7 +45,6 @@
                       PrivateAssets="all"
                       ExcludeAssets="build;buildTransitive;analyzers;contentFiles;native;runtime" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.8.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
     <Reference Include="Microsoft.Dynamics.Nav.CodeAnalysis">
         <SpecificVersion>False</SpecificVersion>
         <HintPath>..\..\Microsoft.Dynamics.BusinessCentral.Development.Tools\net8.0\Microsoft.Dynamics.Nav.CodeAnalysis.dll</HintPath>
