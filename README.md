@@ -210,6 +210,93 @@ public async Task HasFix(string testCase)
 }
 ```
 
+### Fixture configuration
+
+Every `RoslynFixtureFactory.Create<T>()` overload accepts an optional config object. The config classes share a common base (`BaseTestFixtureConfig`) that exposes project-level settings. Fixture-specific config classes inherit from this base and can add extra options on top.
+
+#### Shared options (all fixture types)
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `Language` | `string` | `LanguageNames.AL` | Language used for the test project. |
+| `ThrowsWhenInputDocumentContainsError` | `bool` | `true` | Throw when the code under test has compiler errors. |
+| `References` | `IReadOnlyList<MetadataReference>` | empty | Extra metadata references added to the project. |
+| `AdditionalFiles` | `IReadOnlyList<AdditionalText>` | empty | Additional files exposed to analyzers (e.g. `.editorconfig`). |
+| `RuleSetPath` | `string?` | `null` | Path to a `.ruleset` file that controls diagnostic severity. |
+| `PackageCachePaths` | `IReadOnlyList<string>` | empty | Directories containing `.app` packages the compiler resolves symbols from. |
+| `CompilationOptions` | `CompilationOptions?` | `null` | Override the default `CompilationOptions`. |
+| `ParseOptions` | `ParseOptions?` | `null` | Override the default `ParseOptions`. |
+| `ProjectInfoCustomizer` | `Func<ProjectInfo, ProjectInfo>?` | `null` | Escape hatch to set any `ProjectInfo` property not exposed above. |
+
+#### CodeFixTestFixtureConfig extras
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `AdditionalAnalyzers` | `IReadOnlyCollection<DiagnosticAnalyzer>` | empty | Analyzers that produce the diagnostics the code fix needs to act on. |
+
+#### Example: apply a ruleset to an analyzer test
+
+```csharp
+var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditable>(
+    new AnalyzerTestFixtureConfig
+    {
+        RuleSetPath = @"rules\my.ruleset"
+    });
+
+fixture.HasDiagnosticAtAllMarkers(code, DiagnosticIds.FlowFieldsShouldNotBeEditable);
+```
+
+#### Example: resolve symbols from a package cache
+
+```csharp
+var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditable>(
+    new AnalyzerTestFixtureConfig
+    {
+        PackageCachePaths = [@"C:\packages\base-app"]
+    });
+
+fixture.HasDiagnosticAtAllMarkers(code, DiagnosticIds.FlowFieldsShouldNotBeEditable);
+```
+
+#### Example: set compilation target to OnPrem
+
+```csharp
+var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditable>(
+    new AnalyzerTestFixtureConfig
+    {
+        CompilationOptions = new CompilationOptions(target: CompilationTarget.OnPrem)
+    });
+
+fixture.HasDiagnosticAtAllMarkers(code, DiagnosticIds.FlowFieldsShouldNotBeEditable);
+```
+
+#### Example: code fix with additional analyzers and a ruleset
+
+```csharp
+var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditableCodeFixProvider>(
+    new CodeFixTestFixtureConfig
+    {
+        AdditionalAnalyzers = [new Analyzer.FlowFieldsShouldNotBeEditable()],
+        RuleSetPath = @"rules\my.ruleset"
+    });
+
+fixture.TestCodeFix(currentCode, expectedCode, DiagnosticDescriptors.FlowFieldsShouldNotBeEditable);
+```
+
+#### Example: escape hatch for advanced ProjectInfo settings
+
+When you need to configure a `ProjectInfo` property that has no dedicated config option, use `ProjectInfoCustomizer`.
+
+```csharp
+var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditable>(
+    new AnalyzerTestFixtureConfig
+    {
+        ProjectInfoCustomizer = info => info.WithAssemblyProbingPaths([@"C:\probing"])
+    });
+
+fixture.HasDiagnosticAtAllMarkers(code, DiagnosticIds.FlowFieldsShouldNotBeEditable);
+```
+
 ### NavCodeAnalysisBase
 The `NavCodeAnalysisBase` class is a base class for analyzer tests that need to behave differently depending on the version of the AL Language (`Microsoft.Dynamics.Nav.CodeAnalysis`). By inheriting from this class, your tests automatically gain utilities for:
 * Detecting the currently loaded Microsoft.Dynamics.Nav.CodeAnalysis assembly version.
