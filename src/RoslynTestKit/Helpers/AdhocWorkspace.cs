@@ -80,16 +80,37 @@ namespace RoslynTestKit
         /// </summary>
 #if NETSTANDARD2_1
         public Project? AddProject(string name, string language)
+            => AddProjectInternal(name, language, null);
+
+        internal Project? AddProject(string name, string language, ProjectSettings? settings)
+            => AddProjectInternal(name, language, settings);
+
+        private Project? AddProjectInternal(string name, string language, ProjectSettings? settings)
         {
-            var info = ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(), name, name, language);
+            var info = ProjectInfo.Create(
+                ProjectId.CreateNewId(), VersionStamp.Create(), name, name, language,
+                packageCachePaths: settings?.PackageCachePaths,
+                parseOptions: settings?.ParseOptions,
+                ruleSetPath: settings?.RuleSetPath);
+
+            if (settings?.ProjectInfoCustomizer != null)
+                info = settings.ProjectInfoCustomizer(info);
+
             return AddProject(info);
         }
 #endif
 
 #if NET8_0_OR_GREATER
         public Project? AddProject(string name, string language)
+            => AddProject(name, language, null);
+
+        internal Project? AddProject(string name, string language, ProjectSettings? settings)
         {
-            var info = CreateProjectInfoViaReflection(name, language);
+            var info = CreateProjectInfoViaReflection(name, language, settings);
+
+            if (settings?.ProjectInfoCustomizer != null)
+                info = settings.ProjectInfoCustomizer(info);
+
             return AddProject(info);
         }
 
@@ -102,10 +123,10 @@ namespace RoslynTestKit
         /// version v17.0.28.6483 and v17.0.28.26016 of Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll.
         /// By using reflection, we can call the method regardless of which version is loaded at runtime.
         /// </remarks>
-        private static ProjectInfo CreateProjectInfoViaReflection(string name, string language)
+        private static ProjectInfo CreateProjectInfoViaReflection(string name, string language, ProjectSettings? settings = null)
         {
             var (method, parameters) = _projectInfoCreateMethod.Value;
-            var args = BuildMethodArguments(parameters, name, language);
+            var args = BuildMethodArguments(parameters, name, language, settings);
 
             var result = method.Invoke(null, args);
             if (result is not ProjectInfo projectInfo)
@@ -119,13 +140,13 @@ namespace RoslynTestKit
         /// <summary>
         /// Builds the argument array for calling ProjectInfo.Create via reflection.
         /// </summary>
-        private static object?[] BuildMethodArguments(ParameterInfo[] parameters, string name, string language)
+        private static object?[] BuildMethodArguments(ParameterInfo[] parameters, string name, string language, ProjectSettings? settings)
         {
             var args = new object?[parameters.Length];
 
             for (int i = 0; i < parameters.Length; i++)
             {
-                args[i] = GetParameterValue(parameters[i], name, language);
+                args[i] = GetParameterValue(parameters[i], name, language, settings);
             }
 
             return args;
@@ -133,20 +154,23 @@ namespace RoslynTestKit
 
         /// <summary>
         /// Determines the value to pass for a given parameter of ProjectInfo.Create.
+        /// When a <see cref="ProjectSettings"/> instance is provided, its values take precedence over
+        /// the parameter defaults for the supported curated properties.
         /// </summary>
-        private static object? GetParameterValue(ParameterInfo parameter, string name, string language)
+        private static object? GetParameterValue(ParameterInfo parameter, string name, string language, ProjectSettings? settings)
         {
             var paramName = parameter.Name?.ToLowerInvariant() ?? string.Empty;
 
-            // Handle the required parameters (first 5 in the method signature)
             return paramName switch
             {
-                "id" => ProjectId.CreateNewId(),
-                "version" => VersionStamp.Create(),
-                "name" => name,
-                "assemblyname" => name,
-                "language" => language,
-                // For optional parameters, use their declared default value or an appropriate fallback
+                "id"                  => ProjectId.CreateNewId(),
+                "version"             => VersionStamp.Create(),
+                "name"                => name,
+                "assemblyname"        => name,
+                "language"            => language,
+                "packagecachepaths"   when settings?.PackageCachePaths   != null => settings.PackageCachePaths,
+                "parseoptions"        when settings?.ParseOptions         != null => settings.ParseOptions,
+                "rulesetpath"         when settings?.RuleSetPath          != null => settings.RuleSetPath,
                 _ => GetDefaultParameterValue(parameter)
             };
         }

@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using AdditionalText = Microsoft.Dynamics.Nav.CodeAnalysis.AdditionalText;
 using CompilationOptions = Microsoft.Dynamics.Nav.CodeAnalysis.CompilationOptions;
 using Document = Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Document;
 using LanguageNames = Microsoft.Dynamics.Nav.CodeAnalysis.LanguageNames;
+using ParseOptions = Microsoft.Dynamics.Nav.CodeAnalysis.ParseOptions;
 
 namespace RoslynTestKit
 {
@@ -19,6 +21,36 @@ namespace RoslynTestKit
         protected virtual IReadOnlyCollection<MetadataReference>? References => null;
 
         protected virtual IReadOnlyCollection<AdditionalText>? AdditionalFiles => null;
+
+        /// <summary>
+        /// Path to a ruleset file (.ruleset) applied to the test project.
+        /// When null, the default ruleset behaviour applies.
+        /// </summary>
+        protected virtual string? RuleSetPath => null;
+
+        /// <summary>
+        /// Package cache paths made available to the compiler when resolving symbols.
+        /// </summary>
+        protected virtual IReadOnlyList<string>? PackageCachePaths => null;
+
+        /// <summary>
+        /// Override the <see cref="CompilationOptions"/> used when compiling the test project.
+        /// When null, <c>new CompilationOptions()</c> is used.
+        /// </summary>
+        protected virtual CompilationOptions? CustomCompilationOptions => null;
+
+        /// <summary>
+        /// Override the <see cref="ParseOptions"/> applied to the test project.
+        /// When null, the platform default applies.
+        /// </summary>
+        protected virtual ParseOptions? ParseOptions => null;
+
+        /// <summary>
+        /// Optional callback applied to the <see cref="ProjectInfo"/> after all other settings have
+        /// been applied. Use this escape hatch to configure any <see cref="ProjectInfo"/> property
+        /// not directly exposed on the fixture.
+        /// </summary>
+        protected virtual Func<ProjectInfo, ProjectInfo>? ProjectInfoCustomizer => null;
 
         protected Document CreateDocumentFromCode(string code)
         {
@@ -35,7 +67,15 @@ namespace RoslynTestKit
         {
             var frameworkReferences = CreateFrameworkMetadataReferences();
 
-            var compilationOptions = GetCompilationOptions(languageName);
+            var compilationOptions = CustomCompilationOptions ?? GetCompilationOptions(languageName);
+
+            var settings = new ProjectSettings
+            {
+                RuleSetPath = RuleSetPath,
+                PackageCachePaths = PackageCachePaths,
+                ParseOptions = ParseOptions,
+                ProjectInfoCustomizer = ProjectInfoCustomizer
+            };
 
             var docs = FileSeparatorPattern.Split(code).Reverse().ToList();
             if (docs.Count == 0)
@@ -44,7 +84,7 @@ namespace RoslynTestKit
             }
 
             var project = new AdhocWorkspace()
-                .AddProject("TestProject", languageName)
+                .AddProject("TestProject", languageName, settings)
                 .WithCompilationOptions(compilationOptions)
                 .AddMetadataReferences(frameworkReferences)
                 .AddMetadataReferences(extraReferences);
