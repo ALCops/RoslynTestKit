@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.Dynamics.Nav.CodeAnalysis;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using AdditionalText = Microsoft.Dynamics.Nav.CodeAnalysis.AdditionalText;
 using CompilationOptions = Microsoft.Dynamics.Nav.CodeAnalysis.CompilationOptions;
@@ -48,5 +49,13 @@ namespace RoslynTestKit
         /// directly on the config.
         /// </summary>
         public Func<ProjectInfo, ProjectInfo>? ProjectInfoCustomizer { get; set; } = null;
+
+        /// <summary>
+        /// Optional <see cref="IFileSystem"/> injected into the <see cref="Compilation"/> before analyzers
+        /// run. Use the SDK's <see cref="MemoryFileSystem"/> to provide in-memory files (e.g. XLIFF
+        /// translation files) that analyzers read via <c>Compilation.FileSystem</c>.
+        /// When null, the compilation keeps whatever file system the workspace assigns (typically none).
+        /// </summary>
+        public IFileSystem? FileSystem { get; set; } = null;
     }
 }

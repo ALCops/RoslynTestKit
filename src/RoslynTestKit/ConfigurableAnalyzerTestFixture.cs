@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
+using Microsoft.Dynamics.Nav.CodeAnalysis;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using AdditionalText = Microsoft.Dynamics.Nav.CodeAnalysis.AdditionalText;
@@ -30,5 +31,6 @@ namespace RoslynTestKit
         protected override CompilationOptions? CustomCompilationOptions => _config.CompilationOptions;
         protected override ParseOptions? ParseOptions => _config.ParseOptions;
         protected override Func<ProjectInfo, ProjectInfo>? ProjectInfoCustomizer => _config.ProjectInfoCustomizer;
+        protected override IFileSystem? FileSystem => _config.FileSystem;
     }
 }
