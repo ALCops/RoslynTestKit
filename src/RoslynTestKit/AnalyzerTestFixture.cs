@@ -141,6 +141,11 @@ namespace RoslynTestKit
                 return ImmutableArray<Diagnostic>.Empty;
             }
 
+            if (FileSystem != null)
+            {
+                compilation = compilation.WithFileSystem(FileSystem);
+            }
+
             var compilationWithAnalyzers = compilation.WithAnalyzers(analyzers, options: AdditionalFiles != null ? new AnalyzerOptions(AdditionalFiles.ToImmutableArray()) : null, cancellationToken: CancellationToken.None);
             var discarded = compilation.GetDiagnostics(CancellationToken.None);
             var errorsInDocument = discarded.Where(x => x.Severity == DiagnosticSeverity.Error).ToArray();

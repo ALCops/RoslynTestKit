@@ -227,6 +227,7 @@ Every `RoslynFixtureFactory.Create<T>()` overload accepts an optional config obj
 | `CompilationOptions` | `CompilationOptions?` | `null` | Override the default `CompilationOptions`. |
 | `ParseOptions` | `ParseOptions?` | `null` | Override the default `ParseOptions`. |
 | `ProjectInfoCustomizer` | `Func<ProjectInfo, ProjectInfo>?` | `null` | Escape hatch to set any `ProjectInfo` property not exposed above. |
+| `FileSystem` | `IFileSystem?` | `null` | Virtual file system injected into the compilation via `Compilation.WithFileSystem()`. Use for analyzers that read files from the workspace (e.g. XLIFF translations, config files). |
 
 #### CodeFixTestFixtureConfig extras
 
@@ -282,6 +283,39 @@ var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditableCodeFixPr
 
 fixture.TestCodeFix(currentCode, expectedCode, DiagnosticDescriptors.FlowFieldsShouldNotBeEditable);
 ```
+
+#### Example: provide in-memory files via FileSystem
+
+Analyzers that depend on `Compilation.FileSystem` (e.g. to read XLIFF translation files) require a virtual file system during tests. The SDK ships a `MemoryFileSystem` class that accepts a dictionary of path-to-content mappings.
+
+```csharp
+using System.Text;
+using Microsoft.Dynamics.Nav.CodeAnalysis;
+
+var xliff = """
+<?xml version="1.0" encoding="utf-8"?>
+<xliff version="1.2">
+  <file datatype="xml" source-language="en-US" target-language="da-DK">
+    <body />
+  </file>
+</xliff>
+""";
+
+var files = new Dictionary<string, byte[]>
+{
+    ["Translations/MyApp.da-DK.xlf"] = Encoding.UTF8.GetBytes(xliff)
+};
+
+var fixture = RoslynFixtureFactory.Create<TranslatableTextAnalyzer>(
+    new AnalyzerTestFixtureConfig
+    {
+        FileSystem = new MemoryFileSystem(files)
+    });
+
+fixture.HasDiagnosticAtAllMarkers(code, DiagnosticIds.MissingTranslation);
+```
+
+> **Note:** `MemoryFileSystem.GetDirectoryPath()` always returns `""`. Keys should use forward slashes and match the glob patterns your analyzer passes to `IFileSystem.GetFiles()` (e.g. `Translations/*.xlf`).
 
 #### Example: escape hatch for advanced ProjectInfo settings
 

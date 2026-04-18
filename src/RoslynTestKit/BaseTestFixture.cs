@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
+using Microsoft.Dynamics.Nav.CodeAnalysis;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using AdditionalText = Microsoft.Dynamics.Nav.CodeAnalysis.AdditionalText;
 using CompilationOptions = Microsoft.Dynamics.Nav.CodeAnalysis.CompilationOptions;
@@ -51,6 +52,12 @@ namespace RoslynTestKit
         /// not directly exposed on the fixture.
         /// </summary>
         protected virtual Func<ProjectInfo, ProjectInfo>? ProjectInfoCustomizer => null;
+
+        /// <summary>
+        /// Optional <see cref="IFileSystem"/> injected into the <see cref="Compilation"/> before analyzers
+        /// run. When non-null, the compilation is recreated via <c>Compilation.WithFileSystem()</c>.
+        /// </summary>
+        protected virtual IFileSystem? FileSystem => null;
 
         protected Document CreateDocumentFromCode(string code)
         {

@@ -178,6 +178,11 @@ namespace RoslynTestKit
                     throw new InvalidOperationException("Unable to get compilation from document project.");
                 }
 
+                if (FileSystem != null)
+                {
+                    compilation = compilation.WithFileSystem(FileSystem);
+                }
+
                 return compilation
                     .WithAnalyzers(additionalAnalyzers.ToImmutableArray(), new AnalyzerOptions(this.AdditionalFiles?.ToImmutableArray() ?? ImmutableArray<AdditionalText>.Empty))
                     .GetAnalyzerDiagnosticsAsync().GetAwaiter().GetResult()
