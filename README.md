@@ -210,6 +210,107 @@ public async Task HasFix(string testCase)
 }
 ```
 
+#### Example: Test FixAll behavior
+
+FixAll tests verify that all diagnostics from a given rule can be fixed simultaneously using the CodeFix's `FixAllProvider`. This catches a class of bugs where individual fixes work fine, but applying all fixes at once fails due to overlapping text changes.
+
+Create two files: `current.al` with `[| |]` markers at **every** expected diagnostic location, and `expected.al` with the fully-fixed output.
+
+##### current.al
+
+```AL
+table 50100 MyTable
+{
+    fields
+    {
+        field(1; MyField; Integer) { }
+        [|field(2; FirstCalcField; Boolean)|]
+        {
+            FieldClass = FlowField;
+            CalcFormula = exist(MyTable where (MyField = field(MyField)));
+        }
+        [|field(3; SecondCalcField; Boolean)|]
+        {
+            FieldClass = FlowField;
+            CalcFormula = exist(MyTable where (MyField = field(MyField)));
+        }
+    }
+}
+```
+
+##### expected.al
+
+```AL
+table 50100 MyTable
+{
+    fields
+    {
+        field(1; MyField; Integer) { }
+        field(2; FirstCalcField; Boolean)
+        {
+            FieldClass = FlowField;
+            CalcFormula = exist(MyTable where (MyField = field(MyField)));
+            Editable = false;
+        }
+        field(3; SecondCalcField; Boolean)
+        {
+            FieldClass = FlowField;
+            CalcFormula = exist(MyTable where (MyField = field(MyField)));
+            Editable = false;
+        }
+    }
+}
+```
+
+Create a C# class to execute the tests.
+
+```C#
+[Test]
+[TestCase("MultipleFlowFieldsAreEditable")]
+public async Task HasFixAll(string testCase)
+{
+    var currentCode = await File.ReadAllTextAsync("current.al").ConfigureAwait(false);
+    var expectedCode = await File.ReadAllTextAsync("expected.al").ConfigureAwait(false);
+
+    var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditableCodeFixProvider>(
+        new CodeFixTestFixtureConfig
+        {
+            AdditionalAnalyzers = [new Analyzer.FlowFieldsShouldNotBeEditable()]
+        });
+
+    fixture.TestFixAll(currentCode, expectedCode, DiagnosticDescriptors.FlowFieldsShouldNotBeEditable);
+}
+```
+
+> **Note:** The number of `[| |]` markers in `current.al` must exactly match the number of diagnostics the analyzer reports. If there is a mismatch, the test throws a `RoslynTestKitException` with details about the diagnostics found. The `EquivalenceKey` for the FixAll operation is auto-detected from the first diagnostic's code fix. If you need to select a specific fix (when a CodeFix registers multiple actions), pass the `equivalenceKey` parameter explicitly.
+
+#### Example: FixAll with explicit equivalence key
+
+When a CodeFix registers multiple actions for the same diagnostic (e.g., "Remove unused permission" vs. "Mark as used"), pass the `equivalenceKey` to select which fix to apply across all diagnostics.
+
+```C#
+[Test]
+public async Task HasFixAll_SpecificAction(string testCase)
+{
+    var currentCode = await File.ReadAllTextAsync("current.al").ConfigureAwait(false);
+    var expectedCode = await File.ReadAllTextAsync("expected.al").ConfigureAwait(false);
+
+    var fixture = RoslynFixtureFactory.Create<MyCodeFixProvider>(
+        new CodeFixTestFixtureConfig
+        {
+            AdditionalAnalyzers = [new Analyzer.MyDiagnosticAnalyzer()]
+        });
+
+    fixture.TestFixAll(
+        currentCode,
+        expectedCode,
+        DiagnosticDescriptors.MyRule,
+        equivalenceKey: "RemoveUnusedPermission");
+}
+```
+
+> **Tip:** The `equivalenceKey` value must match the `CodeAction.EquivalenceKey` set by the CodeFix when registering the action via `context.RegisterCodeFix()`. If unsure, run a single `TestCodeFix` first and inspect the available code actions.
+
 ### Fixture configuration
 
 Every `RoslynFixtureFactory.Create<T>()` overload accepts an optional config object. The config classes share a common base (`BaseTestFixtureConfig`) that exposes project-level settings. Fixture-specific config classes inherit from this base and can add extra options on top.
@@ -405,10 +506,15 @@ Working with `.al` files instead of declaring the code inline the test method it
 │      │   │   └───SingleFlowFieldIsEditableWithComment
 │      │   │   │   ├───current.al
 │      │   │   │   └───expected.al
+│      │   └───HasFixAll
+│      │   │   └───MultipleFlowFieldsAreEditable
+│      │   │   │   ├───current.al
+│      │   │   │   └───expected.al
 │      ├───MyOtherDiagnostic
 │      │   ├───HasDiagnostic
 │      │   └───NoDiagnostic
 │      │   └───HasFix
+│      │   └───HasFixAll
 ```
 
 ## Code comparison
