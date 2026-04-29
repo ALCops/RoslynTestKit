@@ -11,6 +11,7 @@ using Microsoft.Dynamics.Nav.CodeAnalysis.Text;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using RoslynTestKit.CodeActionLocators;
 using RoslynTestKit.Utils;
+using Document = Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Document;
 
 namespace RoslynTestKit
 {
@@ -102,6 +103,88 @@ namespace RoslynTestKit
             var locator = new TextSpanLocator(span);
             var diagnostic = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
             TestCodeFix(document, expected, diagnostic, locator, new ByIndexCodeActionSelector(codeFixIndex));
+        }
+
+        /// <summary>
+        /// Tests the FixAll operation for a given diagnostic ID. The markup code must contain
+        /// multiple <c>[| |]</c> markers, one for each expected diagnostic. The method asserts that
+        /// the analyzer produces exactly as many diagnostics as there are markers, then invokes the
+        /// CodeFix's <see cref="FixAllProvider"/> at <see cref="FixAllScope.Document"/> scope and
+        /// compares the result against the expected code.
+        /// </summary>
+        /// <param name="markupCode">Code with <c>[| |]</c> markers at each expected diagnostic location.</param>
+        /// <param name="expected">The expected code after all fixes have been applied.</param>
+        /// <param name="diagnosticId">The diagnostic ID to fix (e.g. "AC0031").</param>
+        /// <param name="codeFixIndex">Index of the code fix to select for equivalence key auto-detection (default: 0).</param>
+        /// <param name="equivalenceKey">Optional explicit equivalence key. When null, auto-detected from the first diagnostic's code fix.</param>
+        public void TestFixAll(string markupCode, string expected, string diagnosticId, int codeFixIndex = 0, string? equivalenceKey = null)
+        {
+            var markup = new CodeMarkup(markupCode);
+            var document = CreateDocumentFromCode(markup.Code);
+            var allDiagnostics = GetAllReportedDiagnostics(document).ToList();
+            var matchingDiagnostics = allDiagnostics.Where(d => d.Id == diagnosticId).ToList();
+
+            if (matchingDiagnostics.Count != markup.AllLocators.Count)
+            {
+                throw RoslynTestKitException.FixAllDiagnosticCountMismatch(
+                    markup.AllLocators.Count, matchingDiagnostics.Count, diagnosticId, matchingDiagnostics);
+            }
+
+            TestFixAll(document, expected, matchingDiagnostics, codeFixIndex, equivalenceKey);
+        }
+
+        /// <summary>
+        /// Tests the FixAll operation for a given <see cref="DiagnosticDescriptor"/>. The markup code must
+        /// contain multiple <c>[| |]</c> markers, one for each expected diagnostic.
+        /// </summary>
+        /// <param name="markupCode">Code with <c>[| |]</c> markers at each expected diagnostic location.</param>
+        /// <param name="expected">The expected code after all fixes have been applied.</param>
+        /// <param name="descriptor">The diagnostic descriptor to fix.</param>
+        /// <param name="codeFixIndex">Index of the code fix to select for equivalence key auto-detection (default: 0).</param>
+        /// <param name="equivalenceKey">Optional explicit equivalence key. When null, auto-detected from the first diagnostic's code fix.</param>
+        public void TestFixAll(string markupCode, string expected, DiagnosticDescriptor descriptor, int codeFixIndex = 0, string? equivalenceKey = null)
+        {
+            TestFixAll(markupCode, expected, descriptor.Id, codeFixIndex, equivalenceKey);
+        }
+
+        private void TestFixAll(Document document, string expected, IReadOnlyList<Diagnostic> diagnostics, int codeFixIndex, string? equivalenceKey)
+        {
+            var provider = CreateProvider();
+            var fixAllProvider = provider.GetFixAllProvider();
+            if (fixAllProvider is null)
+            {
+                throw RoslynTestKitException.FixAllProviderNotFound(provider.GetType().Name);
+            }
+
+            if (equivalenceKey is null)
+            {
+                var firstDiagnostic = diagnostics[0];
+                var codeFixes = GetCodeFixes(document, firstDiagnostic);
+                if (codeFixes.Length > codeFixIndex)
+                {
+                    equivalenceKey = codeFixes[codeFixIndex].EquivalenceKey;
+                }
+            }
+
+            var diagnosticIds = diagnostics.Select(d => d.Id).Distinct();
+            var diagnosticProvider = new TestDiagnosticProvider(diagnostics.ToImmutableArray());
+
+            var fixAllContext = new FixAllContext(
+                document,
+                provider,
+                FixAllScope.Document,
+                equivalenceKey,
+                diagnosticIds,
+                diagnosticProvider,
+                CancellationToken.None);
+
+            var fixAllAction = fixAllProvider.GetFixAsync(fixAllContext).GetAwaiter().GetResult();
+            if (fixAllAction is null)
+            {
+                throw RoslynTestKitException.FixAllReturnedNoAction(equivalenceKey);
+            }
+
+            Verify.CodeAction(fixAllAction, document, expected);
         }
 
         private void TestCodeFix(Document document, string expected, string diagnosticId, IDiagnosticLocator locator, ICodeActionSelector codeActionSelector)

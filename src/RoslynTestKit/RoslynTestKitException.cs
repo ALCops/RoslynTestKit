@@ -108,5 +108,32 @@ namespace RoslynTestKit
             var foundSuggestionDescription = resultItems.MergeAsBulletList(x => x.DisplayText, title: "\r\nFound suggestions:\r\n");
             return new RoslynTestKitException($"Cannot get suggestions:\r\n{missingCompletion.MergeAsBulletList()}\r\nat{locator.Description()}{foundSuggestionDescription}");
         }
+
+        public static RoslynTestKitException FixAllProviderNotFound(string codeFixProviderName)
+        {
+            return new RoslynTestKitException(
+                $"CodeFixProvider '{codeFixProviderName}' does not support FixAll (GetFixAllProvider() returned null). " +
+                "Ensure the CodeFixProvider overrides GetFixAllProvider() and returns a non-null FixAllProvider.");
+        }
+
+        public static RoslynTestKitException FixAllDiagnosticCountMismatch(int expectedCount, int actualCount, string diagnosticId, IReadOnlyList<Diagnostic> foundDiagnostics)
+        {
+            var diagnosticInfo = foundDiagnostics.MergeWithNewLines(d =>
+            {
+                var position = d.Location.GetLineSpan().StartLinePosition;
+                return $"  [{d.Id}] Line:{position.Line} Col:{position.Character} - {d.GetMessage()}";
+            });
+            return new RoslynTestKitException(
+                $"Expected {expectedCount} diagnostics for '{diagnosticId}' (based on [| |] markers) but found {actualCount}.\r\n" +
+                $"Diagnostics found:\r\n{diagnosticInfo}");
+        }
+
+        public static RoslynTestKitException FixAllReturnedNoAction(string? equivalenceKey)
+        {
+            var keyInfo = equivalenceKey != null ? $" with equivalence key '{equivalenceKey}'" : "";
+            return new RoslynTestKitException(
+                $"FixAllProvider.GetFixAsync() returned null{keyInfo}. " +
+                "The FixAll operation produced no code action.");
+        }
     }
 }
