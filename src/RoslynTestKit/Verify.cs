@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using Microsoft.Dynamics.Nav.CodeAnalysis.CodeActions;
-using Microsoft.Dynamics.Nav.CodeAnalysis.Text;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using RoslynTestKit.Utils;
 
@@ -35,10 +33,7 @@ namespace RoslynTestKit
 
             var sourceText = newDocument.GetTextAsync(CancellationToken.None).GetAwaiter().GetResult();
             var mergedDocumentBuilder = new StringBuilder();
-            var text = ConvertToLineEndingsAwareString(sourceText);
-
-            mergedDocumentBuilder.Append(text);
-
+            mergedDocumentBuilder.Append(sourceText.ToString());
 
             foreach (var doc in newDocument.Project.Documents.OrderByDescending(x => x.Name))
             {
@@ -47,12 +42,12 @@ namespace RoslynTestKit
                     mergedDocumentBuilder.AppendLine($"{Environment.NewLine}{BaseTestFixture.FileSeparator}");
 
                     var docSourceText = doc.GetTextAsync(CancellationToken.None).GetAwaiter().GetResult();
-                    var docText = ConvertToLineEndingsAwareString(sourceText);
-
-                    mergedDocumentBuilder.Append(docText);
+                    mergedDocumentBuilder.Append(docSourceText.ToString());
                 }
             }
-            var actualCode = mergedDocumentBuilder.ToString();
+
+            var actualCode = NormalizeLineEndings(mergedDocumentBuilder.ToString());
+            expectedCode = NormalizeLineEndings(expectedCode);
 
             if (actualCode != expectedCode)
             {
@@ -62,17 +57,9 @@ namespace RoslynTestKit
             }
         }
 
-        private static string ConvertToLineEndingsAwareString(SourceText sourceText)
+        private static string NormalizeLineEndings(string text)
         {
-            string text = sourceText.ToString();
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
-                RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                text = text.Replace("\r\n", "\n");
-            }
-
-            return text;
+            return text.Replace("\r\n", "\n");
         }
     }
 }
