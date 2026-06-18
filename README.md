@@ -323,7 +323,7 @@ Every `RoslynFixtureFactory.Create<T>()` overload accepts an optional config obj
 | `ThrowsWhenInputDocumentContainsError` | `bool` | `true` | Throw when the code under test has compiler errors. |
 | `References` | `IReadOnlyList<MetadataReference>` | empty | Extra metadata references added to the project. |
 | `AdditionalFiles` | `IReadOnlyList<AdditionalText>` | empty | Additional files exposed to analyzers (e.g. `.editorconfig`). |
-| `RuleSetPath` | `string?` | `null` | Path to a `.ruleset` file that controls diagnostic severity. |
+| `RuleSetPath` | `string?` | `null` | Path to a JSON ruleset file. Its general and per-rule diagnostic options are applied to the compilation, so it can change severities and **enable diagnostics that are `isEnabledByDefault: false`**. |
 | `PackageCachePaths` | `IReadOnlyList<string>` | empty | Directories containing `.app` packages the compiler resolves symbols from. |
 | `CompilationOptions` | `CompilationOptions?` | `null` | Override the default `CompilationOptions`. |
 | `ParseOptions` | `ParseOptions?` | `null` | Override the default `ParseOptions`. |
@@ -338,11 +338,26 @@ Every `RoslynFixtureFactory.Create<T>()` overload accepts an optional config obj
 
 #### Example: apply a ruleset to an analyzer test
 
+A ruleset is a JSON file. Its `action` values map to diagnostic severities
+(`Error`, `Warning`, `Info`, `Hidden`, `None`, `Default`). Setting a real
+severity also **enables a rule that is `isEnabledByDefault: false`**, which is the
+typical reason to use a ruleset in tests:
+
+```json
+{
+    "name": "Enable FlowFieldsShouldNotBeEditable",
+    "description": "Enables the rule for tests.",
+    "rules": [
+        { "id": "LC0001", "action": "Warning" }
+    ]
+}
+```
+
 ```csharp
 var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditable>(
     new AnalyzerTestFixtureConfig
     {
-        RuleSetPath = @"rules\my.ruleset"
+        RuleSetPath = @"rules\my.ruleset.json"
     });
 
 fixture.HasDiagnosticAtAllMarkers(code, DiagnosticIds.FlowFieldsShouldNotBeEditable);

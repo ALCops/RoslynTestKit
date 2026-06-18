@@ -135,5 +135,12 @@ namespace RoslynTestKit
                 $"FixAllProvider.GetFixAsync() returned null{keyInfo}. " +
                 "The FixAll operation produced no code action.");
         }
+
+        public static RoslynTestKitException InvalidRuleSet(string ruleSetPath, IReadOnlyList<Diagnostic> diagnostics)
+        {
+            var details = diagnostics.MergeWithNewLines(d => $"  [{d.Id}] {d.GetMessage()}");
+            return new RoslynTestKitException(
+                $"Failed to load ruleset '{ruleSetPath}'.\r\n{details}");
+        }
     }
 }
