@@ -9,7 +9,9 @@ using AdditionalText = Microsoft.Dynamics.Nav.CodeAnalysis.AdditionalText;
 using CompilationOptions = Microsoft.Dynamics.Nav.CodeAnalysis.CompilationOptions;
 using Document = Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Document;
 using LanguageNames = Microsoft.Dynamics.Nav.CodeAnalysis.LanguageNames;
+using NavDiagnostic = Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics.Diagnostic;
 using ParseOptions = Microsoft.Dynamics.Nav.CodeAnalysis.ParseOptions;
+using RuleSetResolver = Microsoft.Dynamics.Nav.CodeAnalysis.DiagnosticRules.RuleSetResolver;
 
 namespace RoslynTestKit
 {
@@ -75,6 +77,7 @@ namespace RoslynTestKit
             var frameworkReferences = CreateFrameworkMetadataReferences();
 
             var compilationOptions = CustomCompilationOptions ?? GetCompilationOptions(languageName);
+            compilationOptions = ApplyRuleSet(compilationOptions);
 
             var settings = new ProjectSettings
             {
@@ -115,6 +118,32 @@ namespace RoslynTestKit
                 LanguageNames.AL => new CompilationOptions(),
                 _ => throw new NotSupportedException($"Language {languageName} is not supported")
             };
+
+        /// <summary>
+        /// Loads the ruleset referenced by <see cref="RuleSetPath"/> (if any) and applies its
+        /// general and per-rule diagnostic options to the supplied <paramref name="options"/>.
+        /// This is what actually enables/disables diagnostics in tests; the platform does not apply
+        /// the ruleset to the compilation automatically when projects are built in-memory.
+        /// </summary>
+        private CompilationOptions ApplyRuleSet(CompilationOptions options)
+        {
+            if (string.IsNullOrEmpty(RuleSetPath))
+            {
+                return options;
+            }
+
+            var diagnostics = new List<NavDiagnostic>();
+            var ruleSet = RuleSetResolver.LoadFromFile(RuleSetPath, diagnostics, externalRulesetsEnabled: false);
+
+            if (diagnostics.Count > 0)
+            {
+                throw RoslynTestKitException.InvalidRuleSet(RuleSetPath, diagnostics);
+            }
+
+            return options
+                .WithGeneralDiagnosticOption(ruleSet.GeneralDiagnosticOption)
+                .WithSpecificDiagnosticOptions(ruleSet.SpecificDiagnosticOptions);
+        }
 
         protected virtual IEnumerable<MetadataReference> CreateFrameworkMetadataReferences()
         {
