@@ -25,6 +25,16 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
     <PackageReference Include="ApprovalTests" Version="5.4.4"
                       ExcludeAssets="build;buildTransitive" />
+    <!-- ApprovalTests 5.4.4 (the last version with a netstandard asset) pins vulnerable transitive packages.
+         Direct references at the lowest patched version with a netstandard2.0 asset lift them; consumers inherit
+         the raised lower bounds through this package's nuspec. NU1903 GHSA-98g6-xh36-x2p7, NU1904 GHSA-rxg9-xrhp-64gj,
+         NU1903 GHSA-447r-wph3-92pm, NU1902 GHSA-9cxh-gqpx-qc5m, NU1902 GHSA-vh55-786g-wjwj, NU1903 GHSA-555c-2p6r-68mm. -->
+    <PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
+    <PackageReference Include="System.Drawing.Common" Version="5.0.3" />
+    <PackageReference Include="System.Formats.Asn1" Version="6.0.1" />
+    <PackageReference Include="System.DirectoryServices.Protocols" Version="5.0.1" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="6.0.1" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="6.0.3" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="3.1.0" />
     <Reference Include="Microsoft.Dynamics.Nav.CodeAnalysis">
         <SpecificVersion>False</SpecificVersion>
@@ -40,7 +50,7 @@
 
   <!-- ms-dynamics-smb.al-16.0.1463980 with AssemblyFileVersion 16.0.22.22232 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <PackageReference Include="ApprovalTests" Version="5.8.0"
+    <PackageReference Include="ApprovalTests" Version="7.0.0"
                       ExcludeAssets="build;buildTransitive" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.8.0" />
     <Reference Include="Microsoft.Dynamics.Nav.CodeAnalysis">
@@ -58,7 +68,7 @@
   <!-- TODO: Bump version when net10.0 is released on marketplace -->
   <!-- ms-dynamics-smb.al-17.0.2273547 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <PackageReference Include="ApprovalTests" Version="5.8.0"
+    <PackageReference Include="ApprovalTests" Version="7.0.0"
                       ExcludeAssets="build;buildTransitive" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
     <Reference Include="Microsoft.Dynamics.Nav.CodeAnalysis">
