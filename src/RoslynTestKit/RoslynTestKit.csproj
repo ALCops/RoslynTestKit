@@ -65,8 +65,7 @@
     </Reference>
   </ItemGroup>
 
-  <!-- TODO: Bump version when net10.0 is released on marketplace -->
-  <!-- ms-dynamics-smb.al-17.0.2273547 -->
+  <!-- ms-dynamics-smb.al-18.0.2726309 with AssemblyFileVersion 18.0.41.39415 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="ApprovalTests" Version="7.0.0"
                       ExcludeAssets="build;buildTransitive" />
