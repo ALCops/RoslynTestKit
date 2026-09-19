@@ -8,7 +8,7 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/ALCops.RoslynTestKit.svg)](https://www.nuget.org/packages/ALCops.RoslynTestKit/)
 
 <!-- Metadata -->
-![TFMs](https://img.shields.io/badge/TFMs-netstandard2.1%20%7C%20net8.0-blue)
+![TFMs](https://img.shields.io/badge/TFMs-netstandard2.1%20%7C%20net8.0%20%7C%20net10.0-blue)
 
 A lightweight framework for writing unit tests for Roslyn diagnostic analyzers, code fixes, refactorings, and completion providers targeting the [AL Language](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-programming-in-al) of Microsoft Dynamics 365 Business Central. This project is a fork of [RoslynTestKit](https://github.com/cezarypiatek/RoslynTestKit), created to support the specific CodeAnalysis assemblies required by the AL language.
 
