@@ -385,3 +385,6 @@ ASALocalRun/
 
 # Microsoft Dynamics Business Central Development Tools
 **/Microsoft.Dynamics.BusinessCentral.Development.Tools/
+
+# Claude Code local settings
+.claude/settings.local.json
