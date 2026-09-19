@@ -59,6 +59,7 @@ jobs:
         with:
           version-number: '18.0.2726309'
           target-path: 'Microsoft.Dynamics.BusinessCentral.Development.Tools\net10.0'
+          path-in-archive: 'extension/bin'
 
       - name: Restore
         run: dotnet restore src/RoslynTestKit.sln
