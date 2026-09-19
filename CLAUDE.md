@@ -30,7 +30,7 @@ gitignored folders under `Microsoft.Dynamics.BusinessCentral.Development.Tools/`
 |---|---|---|---|
 | netstandard2.1 | netstandard2.0 | 12.0.779795 | 12.0.11.58921 |
 | net8.0 | net8.0 | 16.0.1463980 | 16.0.22.22232 |
-| net10.0 | net10.0 | 17.0.2273547 | (not yet recorded) |
+| net10.0 | net10.0 | 18.0.2726309 | 18.0.41.39415 |
 
 Note the deliberate netstandard2.1 TFM to netstandard2.0 folder mismatch. To fetch DLLs
 locally, run the scripts in `.github/actions/setup-bc-devtools/` (`Marketplace.ps1`,

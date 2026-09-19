@@ -9,6 +9,10 @@ inputs:
     description: Target path to extract files
     required: false
     default: Microsoft.Dynamics.BusinessCentral.Development.Tools
+  path-in-archive:
+    description: Subfolder inside the VSIX to extract (v18+ moved DLLs from extension/bin/Analyzers to extension/bin)
+    required: false
+    default: extension/bin/Analyzers
 
 runs:
   using: composite
@@ -42,4 +46,4 @@ runs:
         # Extract BC DevTools asset
         Write-Output "Extracting $($env:ARCHIVE_PATH)..."
 
-        & "$env:ACTION_PATH\Extract-RequiredFiles.ps1" -DestinationPath $env:TARGET_PATH -ArchivePath $env:ARCHIVE_PATH -PathInArchive 'extension/bin/Analyzers'
+        & "$env:ACTION_PATH\Extract-RequiredFiles.ps1" -DestinationPath $env:TARGET_PATH -ArchivePath $env:ARCHIVE_PATH -PathInArchive '${{ inputs.path-in-archive }}'
