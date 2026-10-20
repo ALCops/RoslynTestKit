@@ -65,7 +65,7 @@
     </Reference>
   </ItemGroup>
 
-  <!-- ms-dynamics-smb.al-18.0.2726309 with AssemblyFileVersion 18.0.41.39415 -->
+  <!-- ms-dynamics-smb.al-16.10.2902954 with AssemblyFileVersion 16.10.44.19458 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="ApprovalTests" Version="7.0.0"
                       ExcludeAssets="build;buildTransitive" />
