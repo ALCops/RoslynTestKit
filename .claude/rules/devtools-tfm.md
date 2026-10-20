@@ -12,7 +12,11 @@ A version must be consistent across all these locations:
 
 1. **Csproj comment** per conditional ItemGroup: `<!-- ms-dynamics-smb.al-X.Y.Z with AssemblyFileVersion A.B.C.D -->` (the only place the AssemblyFileVersion is recorded).
 2. **Both workflows** (`pull-request.yml` and `build-and-release.yml`): `version-number` input to `setup-bc-devtools`.
-3. **net10.0 `TODO` comments** in csproj and `build-and-release.yml` (remove them when the net10.0 marketplace version is finalized).
+3. **CLAUDE.md DevTools table**: marketplace version and AssemblyFileVersion of the TFM row.
+
+## Which version to pin
+
+Each TFM pins the *lowest* marketplace release that ships that TFM. The downstream Analyzers CI compiles its cops against the lowest available SDK per TFM, and that floor moves *down* whenever Microsoft publishes a build of that TFM for an older AL major (for example a net10.0 VSIX for AL 16.10 or 17.10 after net10.0 first shipped with AL 18). A RoslynTestKit lib compiled against a newer SDK than the consumer's SDK fails the consumer's test build with CS1705 on every leg between the two versions, and the .NET runtime refuses to bind a lower assembly version anyway. Compiling against the lowest release keeps the lib loadable on every newer SDK. When Microsoft backports a TFM further down, re-pin and release.
 
 ## Package pins
 
@@ -43,13 +47,13 @@ All `Microsoft.Dynamics.Nav.CodeAnalysis*.dll` references use `SpecificVersion=F
 ## Checklist: bumping a DevTools version
 
 1. Resolve the marketplace version with `Marketplace.ps1`.
+   Probe the VSIX layout before pinning: `path-in-archive` is `extension/bin` only for AL 18+ VSIXes; older ones use the default `extension/bin/Analyzers`.
 2. Download into the TFM folder with the three scripts.
 3. Read the DLL's `FileVersion` (e.g. via PowerShell `[System.Diagnostics.FileVersionInfo]::GetVersionInfo()`).
 4. Update the csproj `<!-- ms-dynamics-smb.al-... -->` comment with both marketplace version and AssemblyFileVersion.
 5. Update `version-number` in **both** `pull-request.yml` and `build-and-release.yml`.
-6. Remove `TODO` comments if applicable.
-7. Update the CLAUDE.md DevTools matrix table.
-8. Build all TFMs + pack.
+6. Update the CLAUDE.md DevTools matrix table.
+7. Build all TFMs + pack.
 
 ## Checklist: adding a new TFM
 
