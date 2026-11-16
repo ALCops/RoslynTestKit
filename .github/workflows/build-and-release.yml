@@ -19,6 +19,9 @@ on:
 permissions:
   contents: write
   packages: write
+  # id-token: write lets NuGet/login exchange a GitHub OIDC token for a
+  # short-lived NuGet.org API key (Trusted Publishing).
+  id-token: write
 
 env:
   DOTNET_NOLOGO: true
@@ -119,13 +122,19 @@ jobs:
           --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
           --skip-duplicate
           
+      # The temporary key is valid for one hour, so request it right before the
+      # push. NUGET_USER is the nuget.org profile name (not the email) of a
+      # member of the organization that owns the package and the policy.
+      - name: NuGet.org login
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Publish to NuGet.org
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
-          if [ -z "$NUGET_API_KEY" ]; then
-            echo "NUGET_API_KEY not configured"; exit 1
-          fi
           dotnet nuget push ./artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \
             --source https://api.nuget.org/v3/index.json \
