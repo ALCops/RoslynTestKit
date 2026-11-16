@@ -57,5 +57,14 @@ namespace RoslynTestKit
         /// When null, the compilation keeps whatever file system the workspace assigns (typically none).
         /// </summary>
         public IFileSystem? FileSystem { get; set; } = null;
+
+        /// <summary>
+        /// Source projects added to the workspace before the test project. The test project gets a
+        /// project reference to each of them, so their objects resolve as source symbols declared in
+        /// another module (as in a multi-project workspace). Each project uses the same compilation
+        /// options, references, parse options and package cache paths as the test project;
+        /// <see cref="ProjectInfoCustomizer"/> applies to the test project only.
+        /// </summary>
+        public IReadOnlyList<DependencyProject> DependencyProjects { get; set; } = ImmutableArray<DependencyProject>.Empty;
     }
 }

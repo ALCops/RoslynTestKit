@@ -329,6 +329,7 @@ Every `RoslynFixtureFactory.Create<T>()` overload accepts an optional config obj
 | `ParseOptions` | `ParseOptions?` | `null` | Override the default `ParseOptions`. |
 | `ProjectInfoCustomizer` | `Func<ProjectInfo, ProjectInfo>?` | `null` | Escape hatch to set any `ProjectInfo` property not exposed above. |
 | `FileSystem` | `IFileSystem?` | `null` | Virtual file system injected into the compilation via `Compilation.WithFileSystem()`. Use for analyzers that read files from the workspace (e.g. XLIFF translations, config files). |
+| `DependencyProjects` | `IReadOnlyList<DependencyProject>` | empty | Source projects the test project references as workspace project references, so their objects resolve as source symbols from another module. `ProjectInfoCustomizer` applies to the test project only. |
 
 #### CodeFixTestFixtureConfig extras
 
@@ -445,6 +446,24 @@ var fixture = RoslynFixtureFactory.Create<FlowFieldsShouldNotBeEditable>(
     });
 
 fixture.HasDiagnosticAtAllMarkers(code, DiagnosticIds.FlowFieldsShouldNotBeEditable);
+```
+
+#### Example: reference another workspace project
+
+`DependencyProjects` adds source projects to the workspace and gives the test project a project
+reference to each, like a multi-project workspace in the AL editor. Their procedures are source
+symbols whose syntax trees are not part of the test project's compilation. Each
+`DependencyProject` takes a name and AL code (`/*EOD*/` splits it into documents); `Publisher`,
+`Version` and `AppId` are optional (`AppId` defaults to a new GUID per instance).
+
+```csharp
+var fixture = RoslynFixtureFactory.Create<UseSequentialGuid>(
+    new AnalyzerTestFixtureConfig
+    {
+        DependencyProjects = [new DependencyProject("DependencyApp", dependencyCode)]
+    });
+
+fixture.NoException(code);
 ```
 
 ### NavCodeAnalysisBase

@@ -23,6 +23,7 @@ Each config property follows: `BaseTestFixtureConfig` property -> `BaseTestFixtu
 | `ParseOptions` | `ParseOptions` | `ProjectSettings` -> `AdhocWorkspace.AddProject` |
 | `ProjectInfoCustomizer` | `ProjectInfoCustomizer` | `ProjectSettings` -> `AdhocWorkspace.AddProject` (applied after `ProjectInfo.Create`) |
 | `FileSystem` | `FileSystem` | `AnalyzerTestFixture.GetDiagnostics`, `CodeFixTestFixture.GetAllReportedDiagnostics` via `compilation.WithFileSystem()` |
+| `DependencyProjects` | `DependencyProjects` | `CreateDocumentFromCode` (extra workspace projects + project references from `TestProject`) |
 | `AdditionalAnalyzers` (CodeFix only) | `CreateAdditionalAnalyzers` | `CodeFixTestFixture.GetAllReportedDiagnostics` |
 
 ## Quirks to preserve or change deliberately
@@ -31,6 +32,7 @@ Each config property follows: `BaseTestFixtureConfig` property -> `BaseTestFixtu
 - `CodeRefactoringTestFixture.FailWhenInputContainsErrors` is not config-wired; it is a standalone `protected virtual` defaulting to `true`.
 - `CodeFixTestFixture` without `AdditionalAnalyzers` falls back to `semanticModel.GetDiagnostics()` (compiler diagnostics only).
 - `TestFixAll` requires marker count == diagnostic count; mismatch throws `RoslynTestKitException`.
+- Each dependency project gets a `ProjectDefinition` (non-empty `AppId`) through its `ProjectInfo`: the SDK's project reference manager keys the referenced module by that definition and throws a `NullReferenceException` when it is null. Dependency projects reuse the test project's settings except `ProjectInfoCustomizer`. With no dependency projects the workspace setup is the single-project path.
 
 ## Markup and multi-document tests
 
