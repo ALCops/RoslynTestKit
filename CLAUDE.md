@@ -49,7 +49,7 @@ virtual` properties. Entry point: `RoslynFixtureFactory.Create<T>()`.
 
 **Config:** `BaseTestFixtureConfig` exposes: `References`, `ThrowsWhenInputDocumentContainsError`,
 `Language`, `AdditionalFiles`, `RuleSetPath`, `PackageCachePaths`, `CompilationOptions`,
-`ParseOptions`, `ProjectInfoCustomizer`, `FileSystem`. `CodeFixTestFixtureConfig` adds
+`ParseOptions`, `ProjectInfoCustomizer`, `FileSystem`, `DependencyProjects`. `CodeFixTestFixtureConfig` adds
 `AdditionalAnalyzers`.
 
 **Markup:** `[|...|]` markers denote diagnostic spans (4-char offset math in `CodeMarkup`).
@@ -69,7 +69,7 @@ debugger is attached.
 ## Hard constraints
 
 - **Public API:** abstract fixtures, `RoslynFixtureFactory`, `*TestFixtureConfig` classes,
-  `NavCodeAnalysisBase`, `ReferenceSource`. **Internal:** `Configurable*`, `ProjectSettings`,
+  `NavCodeAnalysisBase`, `ReferenceSource`, `DependencyProject`. **Internal:** `Configurable*`, `ProjectSettings`,
   `TestCompletionService`, `TestDiagnosticProvider`.
 - Everything must compile on netstandard2.1 against the 12.0 DevTools.
 - Use Nav types, not Roslyn types.

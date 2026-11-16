@@ -32,5 +32,6 @@ namespace RoslynTestKit
         protected override ParseOptions? ParseOptions => _config.ParseOptions;
         protected override Func<ProjectInfo, ProjectInfo>? ProjectInfoCustomizer => _config.ProjectInfoCustomizer;
         protected override IFileSystem? FileSystem => _config.FileSystem;
+        protected override IReadOnlyList<DependencyProject> DependencyProjects => _config.DependencyProjects;
     }
 }

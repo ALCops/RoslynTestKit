@@ -8,6 +8,7 @@ using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using AdditionalText = Microsoft.Dynamics.Nav.CodeAnalysis.AdditionalText;
 using CompilationOptions = Microsoft.Dynamics.Nav.CodeAnalysis.CompilationOptions;
 using Document = Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Document;
+using Project = Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Project;
 using LanguageNames = Microsoft.Dynamics.Nav.CodeAnalysis.LanguageNames;
 using NavDiagnostic = Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics.Diagnostic;
 using ParseOptions = Microsoft.Dynamics.Nav.CodeAnalysis.ParseOptions;
@@ -61,6 +62,12 @@ namespace RoslynTestKit
         /// </summary>
         protected virtual IFileSystem? FileSystem => null;
 
+        /// <summary>
+        /// Source projects added to the workspace before the test project, which gets a project
+        /// reference to each of them. Empty by default.
+        /// </summary>
+        protected virtual IReadOnlyList<DependencyProject> DependencyProjects => Array.Empty<DependencyProject>();
+
         protected Document CreateDocumentFromCode(string code)
         {
             return CreateDocumentFromCode(code, LanguageName, References ?? Array.Empty<MetadataReference>());
@@ -93,8 +100,52 @@ namespace RoslynTestKit
                 throw new ArgumentException("Code cannot be empty after splitting", nameof(code));
             }
 
-            var project = new AdhocWorkspace()
-                .AddProject("TestProject", languageName, settings)
+            var workspace = new AdhocWorkspace();
+            var dependencyProjects = DependencyProjects ?? Array.Empty<DependencyProject>();
+
+            // Dependency projects are registered in the workspace before the test project, each
+            // with a ProjectDefinition: the SDK's project reference manager loads a referenced
+            // project's module keyed by that definition and fails when it is null.
+            var dependencyIds = dependencyProjects
+                .Select(dependency => workspace.AddProject(dependency.Name, languageName, new ProjectSettings
+                {
+                    RuleSetPath = RuleSetPath,
+                    PackageCachePaths = PackageCachePaths,
+                    ParseOptions = ParseOptions,
+                    ProjectInfoCustomizer = info => info.WithProjectDefinition(new ProjectDefinition
+                    {
+                        AppId = dependency.AppId,
+                        Name = dependency.Name,
+                        Publisher = dependency.Publisher,
+                        Version = dependency.Version
+                    })
+                })!.Id)
+                .ToList();
+
+            var project = workspace
+                .AddProject("TestProject", languageName, settings)!;
+
+            if (dependencyProjects.Count > 0)
+            {
+                var solution = project.Solution;
+                for (var i = 0; i < dependencyProjects.Count; i++)
+                {
+                    var dependencyProject = solution.GetProject(dependencyIds[i])!
+                        .WithCompilationOptions(compilationOptions)
+                        .AddMetadataReferences(frameworkReferences)
+                        .AddMetadataReferences(extraReferences);
+                    dependencyProject = AddDocuments(dependencyProject, dependencyProjects[i].Code, $"{dependencyProjects[i].Name}Document").Project;
+
+                    // The path is required by the constructor but not used to resolve the reference.
+                    solution = dependencyProject.Solution.AddProjectReference(
+                        project.Id,
+                        new ProjectReference(dependencyIds[i], $"{dependencyProjects[i].Name}/app.json"));
+                }
+
+                project = solution.GetProject(project.Id)!;
+            }
+
+            project = project
                 .WithCompilationOptions(compilationOptions)
                 .AddMetadataReferences(frameworkReferences)
                 .AddMetadataReferences(extraReferences);
@@ -108,6 +159,19 @@ namespace RoslynTestKit
             }
 
             return mainDocument!; // Non-null assertion since we checked docs.Count > 0
+        }
+
+        private static Document AddDocuments(Project project, string code, string documentNamePrefix)
+        {
+            var docs = FileSeparatorPattern.Split(code);
+            Document? lastDocument = null;
+            for (var i = 0; i < docs.Length; i++)
+            {
+                lastDocument = project.AddDocument($"{documentNamePrefix}{i}", docs.Length > 1 ? docs[i].Trim() : docs[i]);
+                project = lastDocument.Project;
+            }
+
+            return lastDocument!; // Regex.Split always returns at least one element
         }
 
         private static CompilationOptions GetCompilationOptions(string languageName) =>
