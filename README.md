@@ -455,6 +455,10 @@ reference to each, like a multi-project workspace in the AL editor. Their proced
 symbols whose syntax trees are not part of the test project's compilation. Each
 `DependencyProject` takes a name and AL code (`/*EOD*/` splits it into documents); `Publisher`,
 `Version` and `AppId` are optional (`AppId` defaults to a new GUID per instance).
+Dependency projects use the test project's compilation options (including the ruleset), references,
+parse options and package cache paths, but not `ProjectInfoCustomizer`. Compiler errors in a
+dependency project are not reported by `ThrowsWhenInputDocumentContainsError`, which checks the
+input document only.
 
 ```csharp
 var fixture = RoslynFixtureFactory.Create<UseSequentialGuid>(

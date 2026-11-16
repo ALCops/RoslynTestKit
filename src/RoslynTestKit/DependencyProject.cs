@@ -38,6 +38,14 @@ namespace RoslynTestKit
         /// App ID. Defaults to a new value per instance; the SDK resolves project references
         /// by this ID, so it must be non-empty and unique per test.
         /// </summary>
-        public Guid AppId { get; set; } = Guid.NewGuid();
+        public Guid AppId
+        {
+            get => _appId;
+            set => _appId = value == Guid.Empty
+                ? throw new ArgumentException("AppId cannot be empty", nameof(value))
+                : value;
+        }
+
+        private Guid _appId = Guid.NewGuid();
     }
 }
