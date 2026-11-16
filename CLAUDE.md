@@ -90,6 +90,10 @@ always ship and its public surface must not drift from the modern TFMs.
   public API or TFM change.
 - `**/*.md` is excluded from CI path filters; pair README edits with code changes.
 - Releases: GitVersion Mainline on push to master. Never hand-edit versions.
+- NuGet.org push uses Trusted Publishing (`NuGet/login`, `id-token: write`); no API key is
+  stored. The only secret is `NUGET_USER` (nuget.org profile name, not email). The nuget.org
+  policy is bound to this repository and `build-and-release.yml`: renaming the file breaks
+  the release until the policy is updated.
 
 ## Where to look
 
