@@ -158,6 +158,7 @@ namespace RoslynTestKit
 
             if (equivalenceKey is null)
             {
+                // One diagnostic per context, as the BatchFixer hands each diagnostic to the provider on its own.
                 var firstDiagnostic = diagnostics[0];
                 var codeFixes = GetCodeFixes(document, ImmutableArray.Create(firstDiagnostic));
                 if (codeFixes.Length > codeFixIndex)
@@ -300,7 +301,9 @@ namespace RoslynTestKit
         /// <summary>
         /// Builds the <see cref="CodeFixContext"/> the way the editor host does: the located diagnostic
         /// (<paramref name="diagnostics"/>[0]) plus the same-span diagnostics the provider can fix, ordered
-        /// by descending severity. The sort is stable, so the located diagnostic stays first among equals.
+        /// by descending severity as the editor's <c>CodeFixService</c> orders them, so a more severe
+        /// sibling can come first. The sort is stable, so the located diagnostic stays first among equals.
+        /// The located diagnostic is kept even when its ID is not fixable, so <c>NoCodeFix</c> still sees it.
         /// </summary>
         private ImmutableArray<CodeAction> GetCodeFixes(Document document, ImmutableArray<Diagnostic> diagnostics)
         {
@@ -316,6 +319,10 @@ namespace RoslynTestKit
             return builder.ToImmutable();
         }
 
+        /// <summary>
+        /// Returns the reported diagnostic for <paramref name="descriptor"/> with its same-span siblings, or,
+        /// when none is reported at the locator, only a diagnostic created from the descriptor.
+        /// </summary>
         private ImmutableArray<Diagnostic> FindOrCreateDiagnosticForDescriptor(Document document, DiagnosticDescriptor descriptor, IDiagnosticLocator locator)
         {
             var reportedDiagnostics = GetReportedDiagnostics(document, locator).ToList();
