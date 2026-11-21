@@ -210,6 +210,8 @@ public async Task HasFix(string testCase)
 }
 ```
 
+`TestCodeFix` and `NoCodeFix` build the `CodeFixContext` the way the AL editor does: `context.Diagnostics` holds the located diagnostic plus every other reported diagnostic on exactly the same span whose ID is in the provider's `FixableDiagnosticIds`, ordered by descending severity (the located diagnostic stays first among equal severities). A provider that reads only `context.Diagnostics[0]` therefore fails a test where two diagnostics share a span, as it would in the editor. When the descriptor overloads find no reported diagnostic at the marker, the context holds only the diagnostic created from the descriptor.
+
 #### Example: Test FixAll behavior
 
 FixAll tests verify that all diagnostics from a given rule can be fixed simultaneously using the CodeFix's `FixAllProvider`. This catches a class of bugs where individual fixes work fine, but applying all fixes at once fails due to overlapping text changes.

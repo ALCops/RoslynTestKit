@@ -39,22 +39,22 @@ namespace RoslynTestKit
         {
             var document = CreateDocumentFromCode(code);
             var locator = LineLocator.FromCode(code, line);
-            var diagnostic = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
-            NoCodeFix(document, diagnostic, locator);
+            var diagnostics = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
+            NoCodeFix(document, diagnostics, locator);
         }
         public void NoCodeFix(string markupCode, DiagnosticDescriptor descriptor)
         {
             var markup = new CodeMarkup(markupCode);
             var document = CreateDocumentFromCode(markup.Code);
-            var diagnostic = FindOrCreateDiagnosticForDescriptor(document, descriptor, markup.Locator);
-            NoCodeFix(document, diagnostic, markup.Locator);
+            var diagnostics = FindOrCreateDiagnosticForDescriptor(document, descriptor, markup.Locator);
+            NoCodeFix(document, diagnostics, markup.Locator);
         }
 
         public void NoCodeFix(Document document, DiagnosticDescriptor descriptor, TextSpan span)
         {
             var locator = new TextSpanLocator(span);
-            var diagnostic = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
-            NoCodeFix(document, diagnostic, locator);
+            var diagnostics = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
+            NoCodeFix(document, diagnostics, locator);
         }
 
         public void TestCodeFix(string markupCode, string expected, string diagnosticId, int codeFixIndex = 0)
@@ -87,22 +87,22 @@ namespace RoslynTestKit
         {
             var document = CreateDocumentFromCode(code);
             var locator = LineLocator.FromCode(code, line);
-            var diagnostic = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
-            TestCodeFix(document, expected, diagnostic, locator, new ByIndexCodeActionSelector(codeFixIndex));
+            var diagnostics = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
+            TestCodeFix(document, expected, diagnostics, locator, new ByIndexCodeActionSelector(codeFixIndex));
         }
         public void TestCodeFix(string markupCode, string expected, DiagnosticDescriptor descriptor, int codeFixIndex = 0)
         {
             var markup = new CodeMarkup(markupCode);
             var document = CreateDocumentFromCode(markup.Code);
-            var diagnostic = FindOrCreateDiagnosticForDescriptor(document, descriptor, markup.Locator);
-            TestCodeFix(document, expected, diagnostic, markup.Locator, new ByIndexCodeActionSelector(codeFixIndex));
+            var diagnostics = FindOrCreateDiagnosticForDescriptor(document, descriptor, markup.Locator);
+            TestCodeFix(document, expected, diagnostics, markup.Locator, new ByIndexCodeActionSelector(codeFixIndex));
         }
 
         public void TestCodeFix(Document document, string expected, DiagnosticDescriptor descriptor, TextSpan span, int codeFixIndex = 0)
         {
             var locator = new TextSpanLocator(span);
-            var diagnostic = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
-            TestCodeFix(document, expected, diagnostic, locator, new ByIndexCodeActionSelector(codeFixIndex));
+            var diagnostics = FindOrCreateDiagnosticForDescriptor(document, descriptor, locator);
+            TestCodeFix(document, expected, diagnostics, locator, new ByIndexCodeActionSelector(codeFixIndex));
         }
 
         /// <summary>
@@ -158,8 +158,9 @@ namespace RoslynTestKit
 
             if (equivalenceKey is null)
             {
+                // One diagnostic per context, as the BatchFixer hands each diagnostic to the provider on its own.
                 var firstDiagnostic = diagnostics[0];
-                var codeFixes = GetCodeFixes(document, firstDiagnostic);
+                var codeFixes = GetCodeFixes(document, ImmutableArray.Create(firstDiagnostic));
                 if (codeFixes.Length > codeFixIndex)
                 {
                     equivalenceKey = codeFixes[codeFixIndex].EquivalenceKey;
@@ -189,26 +190,26 @@ namespace RoslynTestKit
 
         private void TestCodeFix(Document document, string expected, string diagnosticId, IDiagnosticLocator locator, ICodeActionSelector codeActionSelector)
         {
-            var diagnostic = GetDiagnostic(document, diagnosticId, locator);
-            TestCodeFix(document, expected, diagnostic, locator, codeActionSelector);
+            var diagnostics = GetDiagnostics(document, diagnosticId, locator);
+            TestCodeFix(document, expected, diagnostics, locator, codeActionSelector);
         }
 
         private void NoCodeFix(Document document, string diagnosticId, IDiagnosticLocator locator)
         {
-            var diagnostic = GetDiagnostic(document, diagnosticId, locator);
-            NoCodeFix(document, diagnostic, locator);
+            var diagnostics = GetDiagnostics(document, diagnosticId, locator);
+            NoCodeFix(document, diagnostics, locator);
         }
 
-        private void NoCodeFix(Document document, Diagnostic diagnostic, IDiagnosticLocator locator)
+        private void NoCodeFix(Document document, ImmutableArray<Diagnostic> diagnostics, IDiagnosticLocator locator)
         {
-            var codeFixes = GetCodeFixes(document, diagnostic);
+            var codeFixes = GetCodeFixes(document, diagnostics);
             if (codeFixes.Length != 0)
             {
                 throw RoslynTestKitException.UnexpectedCodeFixFound(codeFixes, locator);
             }
         }
 
-        private Diagnostic GetDiagnostic(Document document, string diagnosticId, IDiagnosticLocator locator)
+        private ImmutableArray<Diagnostic> GetDiagnostics(Document document, string diagnosticId, IDiagnosticLocator locator)
         {
             var reportedDiagnostics = GetReportedDiagnostics(document, locator).ToArray();
             var diagnostic = reportedDiagnostics.FirstOrDefault(x => x.Id == diagnosticId);
@@ -217,12 +218,29 @@ namespace RoslynTestKit
                 throw RoslynTestKitException.DiagnosticNotFound(diagnosticId, locator, reportedDiagnostics);
             }
 
-            return diagnostic;
+            return WithSameSpanDiagnostics(diagnostic, reportedDiagnostics);
         }
 
-        private void TestCodeFix(Document document, string expected, Diagnostic diagnostic, IDiagnosticLocator locator, ICodeActionSelector codeActionSelector)
+        /// <summary>
+        /// Returns <paramref name="diagnostic"/> followed by every other unsuppressed reported diagnostic
+        /// on exactly the same span, because the editor host hands all of them to one
+        /// <see cref="CodeFixContext"/>.
+        /// </summary>
+        private static ImmutableArray<Diagnostic> WithSameSpanDiagnostics(Diagnostic diagnostic, IEnumerable<Diagnostic> reportedDiagnostics)
         {
-            var codeFixes = GetCodeFixes(document, diagnostic);
+            var location = diagnostic.Location;
+            return new[] { diagnostic }
+                .Concat(reportedDiagnostics.Where(d =>
+                    !ReferenceEquals(d, diagnostic) &&
+                    !d.IsSuppressed &&
+                    d.Location.SourceTree == location.SourceTree &&
+                    d.Location.SourceSpan == location.SourceSpan))
+                .ToImmutableArray();
+        }
+
+        private void TestCodeFix(Document document, string expected, ImmutableArray<Diagnostic> diagnostics, IDiagnosticLocator locator, ICodeActionSelector codeActionSelector)
+        {
+            var codeFixes = GetCodeFixes(document, diagnostics);
             var codeAction = codeActionSelector.Find(codeFixes);
             if (codeAction is null)
             {
@@ -280,22 +298,38 @@ namespace RoslynTestKit
             return semanticModel.GetDiagnostics();
         }
 
-        private ImmutableArray<CodeAction> GetCodeFixes(Document document, Diagnostic diagnostic)
+        /// <summary>
+        /// Builds the <see cref="CodeFixContext"/> the way the editor host does: the located diagnostic
+        /// (<paramref name="diagnostics"/>[0]) plus the same-span diagnostics the provider can fix, ordered
+        /// by descending severity as the editor's <c>CodeFixService</c> orders them, so a more severe
+        /// sibling can come first. The sort is stable, so the located diagnostic stays first among equals.
+        /// The located diagnostic is kept even when its ID is not fixable, so <c>NoCodeFix</c> still sees it.
+        /// </summary>
+        private ImmutableArray<CodeAction> GetCodeFixes(Document document, ImmutableArray<Diagnostic> diagnostics)
         {
-            var builder = ImmutableArray.CreateBuilder<CodeAction>();
-            var context = new CodeFixContext(document, diagnostic, (a, _) => builder.Add(a), CancellationToken.None);
             var provider = CreateProvider();
+            var fixableIds = provider.FixableDiagnosticIds;
+            var contextDiagnostics = diagnostics
+                .Where((d, i) => i == 0 || (!fixableIds.IsDefault && fixableIds.Contains(d.Id)))
+                .OrderByDescending(d => d.Severity)
+                .ToImmutableArray();
+            var builder = ImmutableArray.CreateBuilder<CodeAction>();
+            var context = new CodeFixContext(document, diagnostics[0].Location.SourceSpan, contextDiagnostics, (a, _) => builder.Add(a), CancellationToken.None);
             provider.RegisterCodeFixesAsync(context).GetAwaiter().GetResult();
             return builder.ToImmutable();
         }
 
-        private Diagnostic FindOrCreateDiagnosticForDescriptor(Document document, DiagnosticDescriptor descriptor, IDiagnosticLocator locator)
+        /// <summary>
+        /// Returns the reported diagnostic for <paramref name="descriptor"/> with its same-span siblings, or,
+        /// when none is reported at the locator, only a diagnostic created from the descriptor.
+        /// </summary>
+        private ImmutableArray<Diagnostic> FindOrCreateDiagnosticForDescriptor(Document document, DiagnosticDescriptor descriptor, IDiagnosticLocator locator)
         {
             var reportedDiagnostics = GetReportedDiagnostics(document, locator).ToList();
             var diagnostic = reportedDiagnostics.FirstOrDefault(x => x.Id == descriptor.Id);
             if (diagnostic != null)
             {
-                return diagnostic;
+                return WithSameSpanDiagnostics(diagnostic, reportedDiagnostics);
             }
 
             var tree = document.GetSyntaxTreeAsync(CancellationToken.None).Result;
@@ -303,7 +337,7 @@ namespace RoslynTestKit
             {
                 throw new InvalidOperationException("Unable to get syntax tree from document.");
             }
-            return Diagnostic.Create(descriptor, Location.Create(tree, locator.GetSpan()));
+            return ImmutableArray.Create(Diagnostic.Create(descriptor, Location.Create(tree, locator.GetSpan())));
         }
     }
 }
