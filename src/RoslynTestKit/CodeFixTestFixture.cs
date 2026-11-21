@@ -307,7 +307,7 @@ namespace RoslynTestKit
             var provider = CreateProvider();
             var fixableIds = provider.FixableDiagnosticIds;
             var contextDiagnostics = diagnostics
-                .Where((d, i) => i == 0 || fixableIds.Contains(d.Id))
+                .Where((d, i) => i == 0 || (!fixableIds.IsDefault && fixableIds.Contains(d.Id)))
                 .OrderByDescending(d => d.Severity)
                 .ToImmutableArray();
             var builder = ImmutableArray.CreateBuilder<CodeAction>();
