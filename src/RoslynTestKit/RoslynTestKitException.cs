@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.Dynamics.Nav.CodeAnalysis.CodeActions;
+using Microsoft.Dynamics.Nav.CodeAnalysis.CodeFixes;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Text;
+using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces;
 using Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.Completion;
 using RoslynTestKit.CodeActionLocators;
 using RoslynTestKit.Utils;
@@ -118,10 +121,18 @@ namespace RoslynTestKit
 
         public static RoslynTestKitException FixAllDiagnosticCountMismatch(int expectedCount, int actualCount, string diagnosticId, IReadOnlyList<Diagnostic> foundDiagnostics)
         {
+            return FixAllDiagnosticCountMismatch(expectedCount, actualCount, diagnosticId, foundDiagnostics, solution: null);
+        }
+
+        /// <param name="solution">When non-null, each listed diagnostic also names the document it was reported in.</param>
+        public static RoslynTestKitException FixAllDiagnosticCountMismatch(int expectedCount, int actualCount, string diagnosticId, IReadOnlyList<Diagnostic> foundDiagnostics, Solution? solution)
+        {
             var diagnosticInfo = foundDiagnostics.MergeWithNewLines(d =>
             {
                 var position = d.Location.GetLineSpan().StartLinePosition;
-                return $"  [{d.Id}] Line:{position.Line} Col:{position.Character} - {d.GetMessage()}";
+                var tree = d.Location.SourceTree;
+                var documentInfo = solution != null && tree != null ? $" {solution.GetDocument(tree)?.Name ?? "<unknown document>"}" : "";
+                return $"  [{d.Id}]{documentInfo} Line:{position.Line} Col:{position.Character} - {d.GetMessage()}";
             });
             return new RoslynTestKitException(
                 $"Expected {expectedCount} diagnostics for '{diagnosticId}' (based on [| |] markers) but found {actualCount}.\r\n" +
@@ -134,6 +145,39 @@ namespace RoslynTestKit
             return new RoslynTestKitException(
                 $"FixAllProvider.GetFixAsync() returned null{keyInfo}. " +
                 "The FixAll operation produced no code action.");
+        }
+
+        public static RoslynTestKitException FixAllScopeNotSupported(string fixAllProviderName, FixAllScope scope, IEnumerable<FixAllScope> supportedScopes)
+        {
+            return new RoslynTestKitException(
+                $"FixAllProvider '{fixAllProviderName}' does not support FixAll scope '{scope}'. " +
+                $"Supported scopes: {string.Join(", ", supportedScopes)}.");
+        }
+
+        public static RoslynTestKitException FixAllHostEditsOverlap(string documentName, IReadOnlyList<TextChange> edits)
+        {
+            var editInfo = edits.MergeWithNewLines(e => $"  {DescribeEdit(e)}");
+            return new RoslynTestKitException(
+                $"The text edits the editor host would send for '{documentName}' overlap and cannot be applied as one batch.\r\n" +
+                $"Edits (ordered by start):\r\n{editInfo}");
+        }
+
+        public static RoslynTestKitException FixAllHostEditOutOfRange(string documentName, TextChange edit, int textLength)
+        {
+            return new RoslynTestKitException(
+                $"A text edit the editor host would send for '{documentName}' lies outside the original text (length {textLength}): {DescribeEdit(edit)}");
+        }
+
+        public static RoslynTestKitException FixAllHostDocumentAddedTwice(string documentName)
+        {
+            return new RoslynTestKitException(
+                $"More than one operation of the code action adds document '{documentName}', so the editor host would send a full-text edit for the new file once per operation.");
+        }
+
+        private static string DescribeEdit(TextChange edit)
+        {
+            var newText = (edit.NewText ?? string.Empty).Replace("\r", "\\r").Replace("\n", "\\n");
+            return $"[{edit.Span.Start}..{edit.Span.End}) -> \"{newText}\"";
         }
 
         public static RoslynTestKitException InvalidRuleSet(string ruleSetPath, IReadOnlyList<Diagnostic> diagnostics)

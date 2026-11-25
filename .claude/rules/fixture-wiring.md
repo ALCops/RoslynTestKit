@@ -16,15 +16,15 @@ Each config property follows: `BaseTestFixtureConfig` property -> `BaseTestFixtu
 | `References` | `References` | `CreateDocumentFromCode` (extra metadata refs) |
 | `ThrowsWhenInputDocumentContainsError` | `ThrowsWhenInputDocumentContainsError` | `AnalyzerTestFixture.GetDiagnostics`, `CodeFixTestFixture.GetReportedDiagnostics` |
 | `Language` | `LanguageName` | `CreateDocumentFromCode` |
-| `AdditionalFiles` | `AdditionalFiles` | `AnalyzerTestFixture.GetDiagnostics`, `CodeFixTestFixture.GetAllReportedDiagnostics` (AnalyzerOptions) |
+| `AdditionalFiles` | `AdditionalFiles` | `AnalyzerTestFixture.GetDiagnostics`, `CodeFixTestFixture.GetAllReportedDiagnostics` and `GetProjectDiagnosticsLikeHost` (AnalyzerOptions) |
 | `RuleSetPath` | `RuleSetPath` | `BaseTestFixture.ApplyRuleSet` and `ProjectSettings` |
 | `PackageCachePaths` | `PackageCachePaths` | `ProjectSettings` -> `AdhocWorkspace.AddProject` |
 | `CompilationOptions` | `CustomCompilationOptions` | `CreateDocumentFromCode` via `.WithCompilationOptions()` |
 | `ParseOptions` | `ParseOptions` | `ProjectSettings` -> `AdhocWorkspace.AddProject` |
 | `ProjectInfoCustomizer` | `ProjectInfoCustomizer` | `ProjectSettings` -> `AdhocWorkspace.AddProject` (applied after `ProjectInfo.Create`) |
-| `FileSystem` | `FileSystem` | `AnalyzerTestFixture.GetDiagnostics`, `CodeFixTestFixture.GetAllReportedDiagnostics` via `compilation.WithFileSystem()` |
+| `FileSystem` | `FileSystem` | `AnalyzerTestFixture.GetDiagnostics`, `CodeFixTestFixture.GetAllReportedDiagnostics` and `GetProjectDiagnosticsLikeHost` via `compilation.WithFileSystem()` |
 | `DependencyProjects` | `DependencyProjects` | `CreateDocumentFromCode` (extra workspace projects + project references from `TestProject`) |
-| `AdditionalAnalyzers` (CodeFix only) | `CreateAdditionalAnalyzers` | `CodeFixTestFixture.GetAllReportedDiagnostics` |
+| `AdditionalAnalyzers` (CodeFix only) | `CreateAdditionalAnalyzers` | `CodeFixTestFixture.GetAllReportedDiagnostics` and `GetProjectDiagnosticsLikeHost` (filtered to analyzers supporting the fixed ids) |
 
 ## Quirks to preserve or change deliberately
 
@@ -32,6 +32,8 @@ Each config property follows: `BaseTestFixtureConfig` property -> `BaseTestFixtu
 - `CodeRefactoringTestFixture.FailWhenInputContainsErrors` is not config-wired; it is a standalone `protected virtual` defaulting to `true`.
 - `CodeFixTestFixture` without `AdditionalAnalyzers` falls back to `semanticModel.GetDiagnostics()` (compiler diagnostics only).
 - `TestFixAll` requires marker count == diagnostic count; mismatch throws `RoslynTestKitException`.
+- `TestFixAll` at Project/Workspace scope uses `EagerProjectDiagnosticProvider` (whole-compilation re-run on every provider call, like the editor's eager provider; markers counted across all `/*EOD*/` segments); Document scope keeps the pre-computed list in `TestDiagnosticProvider`. The eager provider must compute from the compilation of the `Project` it is handed: `Solution.GetDocument(SyntaxTree)` is identity-based, and in-memory documents have no `FilePath` to filter by.
+- `TestFixAll` verifies via host text-edit replay (diff against the original snapshot, edits of all operations applied in one batch, like the editor's `RunCodeActionCommandHandler`) and then via workspace apply; `FixAllHostVerification.None` skips the replay. `Verify.CodeAction` without the parameter (used by `TestCodeFix`) keeps workspace apply only.
 - Each dependency project gets a `ProjectDefinition` (non-empty `AppId`) through its `ProjectInfo`: the SDK's project reference manager keys the referenced module by that definition and throws a `NullReferenceException` when it is null. Dependency projects reuse the test project's settings except `ProjectInfoCustomizer`. With no dependency projects the workspace setup is the single-project path.
 
 ## Markup and multi-document tests
