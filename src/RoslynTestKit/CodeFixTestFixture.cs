@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using Microsoft.Dynamics.Nav.CodeAnalysis;
@@ -172,6 +173,26 @@ namespace RoslynTestKit
             TestFixAll(markupCode, expected, descriptor.Id, codeFixIndex, equivalenceKey, scope, hostVerification);
         }
 
+        // The two overloads below keep the signatures of releases before the scope and host-verification
+        // parameters existed, so assemblies compiled against them still bind. Their parameters are
+        // required on purpose: a call that omits an argument binds only to the overloads above, and a
+        // call that passes all five arguments prefers these (no default substituted), so no call shape
+        // is ambiguous. They verify like the defaults above.
+
+        /// <summary>Binary-compatibility forwarder; see the overload with <see cref="FixAllScope"/>.</summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void TestFixAll(string markupCode, string expected, string diagnosticId, int codeFixIndex, string? equivalenceKey)
+        {
+            TestFixAll(markupCode, expected, diagnosticId, codeFixIndex, equivalenceKey, FixAllScope.Document, FixAllHostVerification.TextEdits);
+        }
+
+        /// <summary>Binary-compatibility forwarder; see the overload with <see cref="FixAllScope"/>.</summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void TestFixAll(string markupCode, string expected, DiagnosticDescriptor descriptor, int codeFixIndex, string? equivalenceKey)
+        {
+            TestFixAll(markupCode, expected, descriptor.Id, codeFixIndex, equivalenceKey, FixAllScope.Document, FixAllHostVerification.TextEdits);
+        }
+
         private void TestFixAll(Document document, string expected, IReadOnlyList<Diagnostic> diagnostics, int codeFixIndex, string? equivalenceKey,
             FixAllScope scope, FixAllHostVerification hostVerification)
         {
@@ -227,9 +248,12 @@ namespace RoslynTestKit
 
         /// <summary>
         /// Computes the diagnostics of <paramref name="project"/> the way the editor host's eager FixAll
-        /// provider does: the compiler diagnostics of the project's compilation, followed by the
-        /// diagnostics of the analyzers that support one of <paramref name="diagnosticIds"/>, filtered to
-        /// those ids. The compilation is taken from <paramref name="project"/> itself, so the diagnostics'
+        /// provider does. When at least one analyzer supports one of <paramref name="diagnosticIds"/>, the host
+        /// runs only those analyzers and concatenates two lists it gets back: the compiler diagnostics of the
+        /// compilation (<c>newCompilation.GetDiagnostics()</c>) and the analyzer diagnostics. When no analyzer
+        /// supports the ids, it uses the compiler diagnostics alone. Either way the result is filtered to
+        /// <paramref name="diagnosticIds"/>. Compiler and analyzer diagnostics are separate lists, so a
+        /// diagnostic is not counted twice. The compilation is taken from <paramref name="project"/> itself, so the diagnostics'
         /// syntax trees belong to that project snapshot and map back to its documents.
         /// Deviation from the host: the host passes empty analyzer options; the configured
         /// <see cref="BaseTestFixture.AdditionalFiles"/> are kept here so analyzers see the same input as
