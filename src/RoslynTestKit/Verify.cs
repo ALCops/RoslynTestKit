@@ -64,7 +64,8 @@ namespace RoslynTestKit
         /// applies the operations: it keeps the solution the action was computed on as the base for every
         /// operation, diffs each changed document with <c>Document.GetTextChangesAsync</c>, converts each
         /// change to a line/character range of the original text, and sends all edits of a file in one
-        /// batch that the editor applies to the unchanged buffer. Added documents are sent as full text;
+        /// batch that the editor applies to the unchanged buffer. Added documents are sent as full text (a
+        /// document added by more than one operation throws, because the host would write that file twice);
         /// removed documents and operations other than <see cref="ApplyChangesOperation"/> are ignored.
         /// </summary>
         private static string ReplayHostTextEdits(IReadOnlyList<CodeActionOperation> operations, Document document, bool diffAgainstReparsedText)
@@ -83,7 +84,14 @@ namespace RoslynTestKit
                     foreach (var addedId in projectChanges.GetAddedDocuments())
                     {
                         var added = newSolution.GetDocument(addedId)!;
-                        addedDocuments[addedId] = (added.Name, added.GetTextAsync(CancellationToken.None).GetAwaiter().GetResult().ToString());
+                        if (addedDocuments.ContainsKey(addedId))
+                        {
+                            // Every operation is diffed against the same original snapshot, so the host sends
+                            // one full-text edit per operation that adds the document: two writes to one new file.
+                            throw RoslynTestKitException.FixAllHostDocumentAddedTwice(added.Name);
+                        }
+
+                        addedDocuments.Add(addedId, (added.Name, added.GetTextAsync(CancellationToken.None).GetAwaiter().GetResult().ToString()));
                     }
 
                     foreach (var changedId in projectChanges.GetChangedDocuments())
@@ -130,7 +138,9 @@ namespace RoslynTestKit
                 {
                     replayedTexts[entry.Key] = oldText.WithChanges(orderedEdits).ToString();
                 }
-                catch (ArgumentException)
+                // WithChanges reports unordered or overlapping changes with a plain ArgumentException; any
+                // derived exception (null or out-of-range argument) is a different failure and propagates.
+                catch (ArgumentException ex) when (ex.GetType() == typeof(ArgumentException))
                 {
                     throw RoslynTestKitException.FixAllHostEditsOverlap(oldDocument.Name, orderedEdits);
                 }

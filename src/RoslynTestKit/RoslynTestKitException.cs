@@ -168,6 +168,12 @@ namespace RoslynTestKit
                 $"A text edit the editor host would send for '{documentName}' lies outside the original text (length {textLength}): {DescribeEdit(edit)}");
         }
 
+        public static RoslynTestKitException FixAllHostDocumentAddedTwice(string documentName)
+        {
+            return new RoslynTestKitException(
+                $"More than one operation of the code action adds document '{documentName}', so the editor host would send a full-text edit for the new file once per operation.");
+        }
+
         private static string DescribeEdit(TextChange edit)
         {
             var newText = (edit.NewText ?? string.Empty).Replace("\r", "\\r").Replace("\n", "\\n");
