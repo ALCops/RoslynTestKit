@@ -380,7 +380,7 @@ fixture.TestFixAll(
 - `expected` carries every `/*EOD*/` segment, in the same order as the input.
 - `FixAllScope.Workspace` also fixes the `DependencyProjects`, but only the test project is compared with `expected`.
 - The editor runs the analyzers with empty analyzer options; the harness keeps the configured `AdditionalFiles`.
-- The scope must be one the `FixAllProvider` reports in `GetSupportedFixAllScopes()`; otherwise the test throws a `RoslynTestKitException`.
+- `FixAllScope.Project` and `FixAllScope.Workspace` must be scopes the `FixAllProvider` reports in `GetSupportedFixAllScopes()`; otherwise the test throws a `RoslynTestKitException`. `FixAllScope.Document` is not checked.
 
 > **Caveat:** A passing FixAll test does not prove the fix works in the editor. The harness models how the editor host computes and sends the edits, but not the editor's buffers and snapshots: documents that change between computing and applying the fix cannot be modelled in an in-memory workspace.
 
@@ -394,7 +394,7 @@ The AL editor does not apply a FixAll action to its workspace. It diffs every ch
 | `FixAllHostVerification.TextEditsOnReparsedText` | Like `TextEdits`, but each document is diffed against a re-parsed copy of the original text. The fixed text is then not derived from the diff base, so the editor's syntax-tree diff is used instead of the exact text changes. Use it to reproduce a corruption that shows up only when the editor's buffer is not the text the fix was computed on. |
 | `FixAllHostVerification.None` | Applies the operations to the workspace and compares only that result. |
 
-A failure message names the stage that failed: `host text edits` or `workspace apply`.
+A failure message names the stage that failed: `host text edits` or `workspace apply`. The same check is available for any code action through `Verify.CodeAction(codeAction, document, expectedCode, hostVerification)`; the three-argument overload verifies by workspace apply only.
 
 #### TestFixAll parameters
 
