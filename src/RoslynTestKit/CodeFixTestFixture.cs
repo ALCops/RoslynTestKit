@@ -203,10 +203,14 @@ namespace RoslynTestKit
                 throw RoslynTestKitException.FixAllProviderNotFound(provider.GetType().Name);
             }
 
-            var supportedScopes = fixAllProvider.GetSupportedFixAllScopes().ToList();
-            if (!supportedScopes.Contains(scope))
+            // Document scope is not checked: it is the default and TestFixAll always ran it, whatever scopes the provider declares.
+            if (scope != FixAllScope.Document)
             {
-                throw RoslynTestKitException.FixAllScopeNotSupported(fixAllProvider.GetType().Name, scope, supportedScopes);
+                var supportedScopes = fixAllProvider.GetSupportedFixAllScopes().ToList();
+                if (!supportedScopes.Contains(scope))
+                {
+                    throw RoslynTestKitException.FixAllScopeNotSupported(fixAllProvider.GetType().Name, scope, supportedScopes);
+                }
             }
 
             if (equivalenceKey is null)
