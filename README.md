@@ -286,6 +286,8 @@ public async Task HasFixAll(string testCase)
 
 > **Note:** The number of `[| |]` markers in `current.al` must exactly match the number of diagnostics the analyzer reports. If there is a mismatch, the test throws a `RoslynTestKitException` with details about the diagnostics found. The `EquivalenceKey` for the FixAll operation is auto-detected from the first diagnostic's code fix. If you need to select a specific fix (when a CodeFix registers multiple actions), pass the `equivalenceKey` parameter explicitly.
 
+`TestFixAll` verifies the result twice: once by applying the FixAll operations to the test workspace, and once by replaying the text edits the AL editor would send for them against the original documents (see [How the FixAll result is verified](#how-the-fixall-result-is-verified)). Pass `hostVerification: FixAllHostVerification.None` to verify by workspace apply only.
+
 #### Example: FixAll with explicit equivalence key
 
 When a CodeFix registers multiple actions for the same diagnostic (e.g., "Remove unused permission" vs. "Mark as used"), pass the `equivalenceKey` to select which fix to apply across all diagnostics.
@@ -312,6 +314,96 @@ public async Task HasFixAll_SpecificAction(string testCase)
 ```
 
 > **Tip:** The `equivalenceKey` value must match the `CodeAction.EquivalenceKey` set by the CodeFix when registering the action via `context.RegisterCodeFix()`. If unsure, run a single `TestCodeFix` first and inspect the available code actions.
+
+#### Example: FixAll in Project scope (multi-document)
+
+The AL editor offers "Fix All in Document", "Fix All in Project" and "Fix All in Workspace". Pass `scope` to test the wider scopes. Split the code into documents with `/*EOD*/` and put a marker at every diagnostic in every document.
+
+##### current.al
+
+```AL
+codeunit 50100 First
+{
+    procedure Run()
+    var
+        Customer: Record Customer;
+    begin
+        [|Customer.Reset|];
+    end;
+}
+/*EOD*/
+codeunit 50101 Second
+{
+    procedure Run()
+    var
+        Customer: Record Customer;
+    begin
+        [|Customer.Reset|];
+    end;
+}
+```
+
+##### expected.al
+
+```AL
+codeunit 50100 First
+{
+    procedure Run()
+    var
+        Customer: Record Customer;
+    begin
+        Customer.Reset();
+    end;
+}
+/*EOD*/
+codeunit 50101 Second
+{
+    procedure Run()
+    var
+        Customer: Record Customer;
+    begin
+        Customer.Reset();
+    end;
+}
+```
+
+```C#
+fixture.TestFixAll(
+    currentCode,
+    expectedCode,
+    DiagnosticDescriptors.MyRule,
+    scope: FixAllScope.Project);
+```
+
+- The markers of all documents are counted together and must match the number of diagnostics in the whole test project. A count mismatch lists each diagnostic with the document it was reported in.
+- At `FixAllScope.Project` and `FixAllScope.Workspace` the diagnostics are recomputed from the whole compilation every time the `FixAllProvider` asks for them, like the editor's "Fix All in Project". At `FixAllScope.Document` (the default) the diagnostics of the main document are computed once and handed to the provider.
+- `expected` carries every `/*EOD*/` segment, in the same order as the input.
+- `FixAllScope.Workspace` also fixes the `DependencyProjects`, but only the test project is compared with `expected`.
+- The editor runs the analyzers with empty analyzer options; the harness keeps the configured `AdditionalFiles`.
+- The scope must be one the `FixAllProvider` reports in `GetSupportedFixAllScopes()`; otherwise the test throws a `RoslynTestKitException`.
+
+> **Caveat:** A passing FixAll test does not prove the fix works in the editor. The harness models how the editor host computes and sends the edits, but not the editor's buffers and snapshots: documents that change between computing and applying the fix cannot be modelled in an in-memory workspace.
+
+#### How the FixAll result is verified
+
+The AL editor does not apply a FixAll action to its workspace. It diffs every changed document against the solution the fix was computed on, converts each change to a line/character range of the original text, and sends all edits of a file in one batch that the editor applies to the unchanged buffer. Duplicated or overlapping edits in that diff corrupt the code in the editor even when the workspace result is correct. The `hostVerification` parameter selects what `TestFixAll` checks:
+
+| Value | Verification |
+|---|---|
+| `FixAllHostVerification.TextEdits` (default) | Replays the editor's text edits against the original documents and compares that result with `expected` first, then applies the operations to the workspace and compares again. Overlapping edits throw a `RoslynTestKitException` that lists them. |
+| `FixAllHostVerification.TextEditsOnReparsedText` | Like `TextEdits`, but each document is diffed against a re-parsed copy of the original text. The fixed text is then not derived from the diff base, so the editor's syntax-tree diff is used instead of the exact text changes. Use it to reproduce a corruption that shows up only when the editor's buffer is not the text the fix was computed on. |
+| `FixAllHostVerification.None` | Applies the operations to the workspace and compares only that result. |
+
+A failure message names the stage that failed: `host text edits` or `workspace apply`.
+
+#### TestFixAll parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `codeFixIndex` | `0` | Index of the code action, among those registered for the first diagnostic, whose `EquivalenceKey` is used when `equivalenceKey` is null. |
+| `equivalenceKey` | `null` | Explicit `EquivalenceKey` of the code action to apply to all diagnostics. |
+| `scope` | `FixAllScope.Document` | FixAll scope passed to the `FixAllProvider`: `Document`, `Project` or `Workspace`. |
+| `hostVerification` | `FixAllHostVerification.TextEdits` | How the result is verified; see [How the FixAll result is verified](#how-the-fixall-result-is-verified). |
 
 ### Fixture configuration
 
