@@ -69,8 +69,8 @@ debugger is attached.
 ## Hard constraints
 
 - **Public API:** abstract fixtures, `RoslynFixtureFactory`, `*TestFixtureConfig` classes,
-  `NavCodeAnalysisBase`, `ReferenceSource`, `DependencyProject`. **Internal:** `Configurable*`, `ProjectSettings`,
-  `TestCompletionService`, `TestDiagnosticProvider`.
+  `NavCodeAnalysisBase`, `ReferenceSource`, `DependencyProject`, `FixAllHostVerification`. **Internal:** `Configurable*`,
+  `ProjectSettings`, `TestCompletionService`, `TestDiagnosticProvider`, `EagerProjectDiagnosticProvider`.
 - Everything must compile on netstandard2.1 against the 12.0 DevTools.
 - Use Nav types, not Roslyn types.
 - New options must be wired in all four `Configurable*` fixtures; `ProjectInfo`-level options
