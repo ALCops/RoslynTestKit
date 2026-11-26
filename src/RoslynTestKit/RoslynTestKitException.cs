@@ -19,6 +19,10 @@ namespace RoslynTestKit
         {
         }
 
+        private RoslynTestKitException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+
         public static RoslynTestKitException UnexpectedDiagnostic(List<Diagnostic> unexpectedDiagnostics)
         {
             var messages = unexpectedDiagnostics.Select(d =>
@@ -172,6 +176,16 @@ namespace RoslynTestKit
         {
             return new RoslynTestKitException(
                 $"More than one operation of the code action adds document '{documentName}', so the editor host would send a full-text edit for the new file once per operation.");
+        }
+
+        public static RoslynTestKitException FixAllHostDiffFailed(string documentName, string sdkVersion, Exception innerException)
+        {
+            return new RoslynTestKitException(
+                $"The SDK's syntax differ failed while replaying the editor host's text edits for '{documentName}' " +
+                $"(Microsoft.Dynamics.Nav.CodeAnalysis {sdkVersion}): {innerException.GetType().Name}: {innerException.Message}\r\n" +
+                "The editor host computes its edits with the same diff (Document.GetTextChangesAsync, which falls back to " +
+                "SyntaxTree.GetChanges when the code action returns a syntax root), so applying this fix in the editor fails as well.",
+                innerException);
         }
 
         private static string DescribeEdit(TextChange edit)
