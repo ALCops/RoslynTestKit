@@ -70,10 +70,13 @@ namespace RoslynTestKit
         /// document added by more than one operation throws, because the host would write that file twice);
         /// removed documents and operations other than <see cref="ApplyChangesOperation"/> are ignored.
         /// A document whose diff fails with the known defect of the SDK's syntax differ (see
-        /// <see cref="IsKnownSyntaxDifferDefect"/>) is not replayed: its text is taken from the changed
-        /// solution of the last operation that changes it, so the host stage sees for it what the
-        /// workspace apply sees and can neither report nor hide anything for it; every other document is
-        /// still replayed. Any other diff failure throws <see cref="RoslynTestKitException.FixAllHostDiffFailed"/>.
+        /// <see cref="IsKnownSyntaxDifferDefect"/>) is not replayed: edits collected for it from earlier
+        /// operations are dropped, later operations are not diffed, and its text is taken from the changed
+        /// solution of the last operation that changes it. That document therefore loses the replay's
+        /// duplicate-insert and overlap detection entirely; only the workspace-apply comparison checks it.
+        /// The skip is per document because keeping the earlier operations' edits would produce a false
+        /// mismatch against the expected code. Every other document is still replayed. Any other diff
+        /// failure throws <see cref="RoslynTestKitException.FixAllHostDiffFailed"/>.
         /// </summary>
         private static string ReplayHostTextEdits(IReadOnlyList<CodeActionOperation> operations, Document document, bool diffAgainstReparsedText)
         {
@@ -196,21 +199,29 @@ namespace RoslynTestKit
         }
 
         /// <summary>
-        /// First (inclusive) <c>Microsoft.Dynamics.Nav.CodeAnalysis</c> file version whose
-        /// <c>SyntaxDiffer.GetCommonEdgeLengths</c> walks the common leading count back over line breaks with
-        /// <c>while ((count &gt; 0 &amp;&amp; IsCarriageReturnOrLineFeed(old[count])) || IsCarriageReturnOrLineFeed(new[count])) count--;</c>.
-        /// When the compared texts differ at index 0 and the new text starts with a line break, <c>count</c>
-        /// reaches -1 and the <c>StringBuilder</c> indexer throws <see cref="IndexOutOfRangeException"/>, which
-        /// neither <c>Document.GetTextChangesAsync</c> nor the editor host catches for a syntax-root result.
+        /// First (inclusive) <c>Microsoft.Dynamics.Nav.CodeAnalysis</c> file version line whose
+        /// <c>SyntaxDiffer.GetCommonEdgeLengths</c> walks the common leading and trailing counts back over line
+        /// breaks with a mis-parenthesised condition:
+        /// <c>while ((count &gt; 0 &amp;&amp; IsCarriageReturnOrLineFeed(old[count])) || IsCarriageReturnOrLineFeed(new[count])) count--;</c>
+        /// for the leading edge, and the same shape with <c>new[new.Length - count - 1]</c> for the trailing edge.
+        /// The <c>count &gt; 0</c> guard does not cover the <c>new</c> operand, so when a change's new text starts
+        /// (or ends) with a run of line breaks that reaches the position where the compared segments differ,
+        /// <c>count</c> goes to -1, the next index is -1 (or <c>new.Length</c>) and the <c>StringBuilder</c> indexer
+        /// throws <see cref="IndexOutOfRangeException"/>, which neither <c>Document.GetTextChangesAsync</c> nor the
+        /// editor host catches for a syntax-root result.
         /// The 13.x differ has no walk-back (tag <c>v13.1.16.16524</c> of the decompiled SDK source); 14.x and
-        /// 15.x have the defect (tags <c>v14.0.17.47112</c>, <c>v15.2.24.57679</c>).
+        /// 15.x releases have the defect (tags <c>v14.0.17.47112</c>, <c>v15.2.24.57679</c>). Early 14.0
+        /// prereleases (14.0.14, 14.0.15 and some 14.0.16 builds) have no walk-back yet; they never throw this
+        /// exception, so their inclusion in the range is harmless.
         /// </summary>
         private static readonly Version SyntaxDifferDefectFirstVersion = new Version(14, 0);
 
         /// <summary>
-        /// First (exclusive end of the affected range) SDK file version with the fixed walk-back
+        /// Exclusive end of the affected range: the first release line where the fixed walk-back
         /// <c>while (count &gt; 0 &amp;&amp; (IsCarriageReturnOrLineFeed(old[count]) || IsCarriageReturnOrLineFeed(new[count])))</c>
-        /// (tag <c>v16.0.27.57058</c>).
+        /// is present (release tag <c>v16.0.27.57058</c>). 16.0 prereleases below 16.0.25 (for example
+        /// <c>v16.0.21.53261-prerelease</c>, <c>v16.0.24.41895-prerelease</c>) still have the defect; on those the
+        /// exception is not skipped and surfaces as <see cref="RoslynTestKitException.FixAllHostDiffFailed"/>.
         /// </summary>
         private static readonly Version SyntaxDifferDefectFixedVersion = new Version(16, 0);
 
@@ -229,8 +240,8 @@ namespace RoslynTestKit
         /// syntax differ defect (see <see cref="SyntaxDifferDefectFirstVersion"/>) and the loaded SDK is in the
         /// affected range. The origin is recognised by a <c>Microsoft.Dynamics.Nav.CodeAnalysis.SyntaxDiffer</c>
         /// frame in the stack trace: the differ is internal and the throwing frame is the <c>StringBuilder</c>
-        /// indexer, so there is no type to match. A false negative only turns the skip into a
-        /// <see cref="RoslynTestKitException.FixAllHostDiffFailed"/>, never into a silent pass.
+        /// indexer, so there is no type to match. The match assumes the differ's frames are not inlined away;
+        /// a miss fails loudly as <see cref="RoslynTestKitException.FixAllHostDiffFailed"/>, never passes silently.
         /// </summary>
         private static bool IsKnownSyntaxDifferDefect(Exception exception)
         {

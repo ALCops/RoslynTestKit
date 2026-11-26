@@ -27,9 +27,10 @@
         /// and that result is compared with the expected code before the workspace apply is checked.
         /// Known SDK limitation: on <c>Microsoft.Dynamics.Nav.CodeAnalysis</c> 14.x and 15.x the syntax
         /// differ (<c>SyntaxDiffer.GetCommonEdgeLengths</c>) throws an <c>IndexOutOfRangeException</c> for
-        /// some syntax-root results; such a document is not replayed (a note is written to the test
-        /// output) and is verified by workspace apply only. Any other diff failure throws a
-        /// <see cref="RoslynTestKitException"/>.
+        /// a syntax-root result with a change whose new text starts or ends with line breaks where the
+        /// compared segments differ. Such a document is not replayed (a note is written to the test
+        /// output): it loses the replay's duplicate-insert and overlap detection entirely and is checked
+        /// by workspace apply only. Any other diff failure throws a <see cref="RoslynTestKitException"/>.
         /// </summary>
         TextEdits = 1,
 
