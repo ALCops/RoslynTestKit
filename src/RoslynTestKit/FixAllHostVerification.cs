@@ -25,6 +25,11 @@
         /// <c>ApplyChangesOperation</c> is diffed against the original document, the edits of all
         /// operations are collected per document and applied in one batch to the original text,
         /// and that result is compared with the expected code before the workspace apply is checked.
+        /// Known SDK limitation: on <c>Microsoft.Dynamics.Nav.CodeAnalysis</c> 14.x and 15.x the syntax
+        /// differ (<c>SyntaxDiffer.GetCommonEdgeLengths</c>) throws an <c>IndexOutOfRangeException</c> for
+        /// some syntax-root results; such a document is not replayed (a note is written to the test
+        /// output) and is verified by workspace apply only. Any other diff failure throws a
+        /// <see cref="RoslynTestKitException"/>.
         /// </summary>
         TextEdits = 1,
 

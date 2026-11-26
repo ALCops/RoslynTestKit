@@ -396,6 +396,10 @@ The AL editor does not apply a FixAll action to its workspace. It diffs every ch
 
 A failure message names the stage that failed: `host text edits` or `workspace apply`. The same check is available for any code action through `Verify.CodeAction(codeAction, document, expectedCode, hostVerification)`; the three-argument overload verifies by workspace apply only.
 
+If the editor's diff itself throws for a document, the host stage fails with a `RoslynTestKitException` that names the document and the loaded `Microsoft.Dynamics.Nav.CodeAnalysis` version, because the editor runs the same diff (`Document.GetTextChangesAsync`, which falls back to the syntax-tree diff when a code action returns a syntax root, as custom `FixAllProvider`s and `WithDocumentSyntaxRoot` fixes do).
+
+**Known SDK limitation.** In `Microsoft.Dynamics.Nav.CodeAnalysis` 14.x and 15.x (file version 14.0 up to, not including, 16.0) the syntax differ's `SyntaxDiffer.GetCommonEdgeLengths` walks back over line breaks with `while ((count > 0 && IsCarriageReturnOrLineFeed(old[count])) || IsCarriageReturnOrLineFeed(new[count])) count--;`. When the compared texts differ at their first character and the new text starts with a line break, `count` goes to -1 and the diff throws an `IndexOutOfRangeException`. The 13.x differ has no walk-back and 16.0 parenthesises the condition as `count > 0 && (...)` (decompiled SDK tags `v13.1.16.16524`, `v14.0.17.47112`, `v15.2.24.57679`, `v16.0.27.57058`). When that exception comes from `SyntaxDiffer` on an affected version, `TestFixAll` does not replay the host edits for that document: it uses the document's text from the code action's result, writes one note to the test output and goes on; every other document is still replayed and the workspace apply still compares all documents. On any other version, or for any other exception, the test fails. A green `TestFixAll` on SDK 14.x or 15.x therefore proves only the workspace apply for documents a syntax-root result changes in that way; run the same test on SDK 13.x or 16.0+ to cover the host replay.
+
 #### TestFixAll parameters
 
 | Parameter | Default | Description |
